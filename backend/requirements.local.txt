@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+motor
+pydantic
+websockets
+python-jose[bcrypt]
+python-multipart
+bcrypt

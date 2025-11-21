@@ -15,6 +15,12 @@ export default function RoomSelection({ onJoinRoom }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Load nickname from localStorage
+    const savedNickname = localStorage.getItem("playerNickname");
+    if (savedNickname) {
+      setNickname(savedNickname);
+    }
+    
     fetchRooms();
     const interval = setInterval(fetchRooms, 3000);
     return () => clearInterval(interval);
@@ -39,6 +45,10 @@ export default function RoomSelection({ onJoinRoom }) {
       toast.error("הכינוי ארוך מדי (מקסימום 20 תווים)");
       return;
     }
+    
+    // Save nickname and room to localStorage for persistence
+    localStorage.setItem("playerNickname", nickname.trim());
+    localStorage.setItem("lastRoomId", String(roomId));
     
     setLoading(true);
     onJoinRoom(roomId, nickname.trim());
@@ -65,7 +75,7 @@ export default function RoomSelection({ onJoinRoom }) {
             משחק המספר היעד
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לסכום כל המספרים כפול 0.8
+            בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום כל המספרים כפול 0.8
           </p>
         </div>
 

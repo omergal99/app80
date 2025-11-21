@@ -101,7 +101,15 @@ class ConnectionManager:
         if nickname in room_connections[room_id]:
             del room_connections[room_id][nickname]
         if nickname in room.players:
+            was_admin = room.players[nickname].is_admin
             room.players[nickname].connected = False
+            
+            # If admin disconnected, promote next connected player
+            if was_admin:
+                for player in room.players.values():
+                    if player.connected:
+                        player.is_admin = True
+                        break
             
         # Clean up room if no connected players
         if not any(p.connected for p in room.players.values()):
@@ -194,6 +202,18 @@ async def handle_message(room_id: int, nickname: str, data: dict):
             room.current_round += 1
             for player in room.players.values():
                 player.number = None
+            await send_room_state(room_id)
+    
+    elif action == "stop_game":
+        if room.players[nickname].is_admin:
+            room.game_status = "waiting"
+            for player in room.players.values():
+                player.number = None
+            await send_room_state(room_id)
+    
+    elif action == "clear_history":
+        if room.players[nickname].is_admin:
+            room.game_history = []
             await send_room_state(room_id)
 
 async def calculate_winner(room_id: int):

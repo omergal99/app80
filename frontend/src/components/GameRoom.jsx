@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight } from "lucide-react";
+import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -13,7 +14,10 @@ const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws:
 export default function GameRoom({ roomId, nickname, onLeave }) {
   const [roomState, setRoomState] = useState(null);
   const [selectedNumber, setSelectedNumber] = useState([50]);
+  const [inputNumber, setInputNumber] = useState("50");
   const [hasChosen, setHasChosen] = useState(false);
+  const [playersExpanded, setPlayersExpanded] = useState(true);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -86,6 +90,22 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
     }
   };
 
+  const handleSliderChange = (value) => {
+    setSelectedNumber(value);
+    setInputNumber(String(value[0]));
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputNumber(value);
+    
+    // Update slider if valid number
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 0 && num <= 100) {
+      setSelectedNumber([num]);
+    }
+  };
+
   const handleStartGame = () => {
     sendMessage({ action: "start_game" });
   };
@@ -97,6 +117,16 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
 
   const handleNewRound = () => {
     sendMessage({ action: "new_round" });
+  };
+
+  const handleStopGame = () => {
+    sendMessage({ action: "stop_game" });
+  };
+
+  const handleClearHistory = () => {
+    if (window.confirm("האם אתה בטוח שתרצה למחוק את ההיסטוריה?")) {
+      sendMessage({ action: "clear_history" });
+    }
   };
 
   if (!roomState) {
@@ -124,7 +154,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               data-testid="room-title"
             >
-              חדר {roomId}
+              חדר {roomId} - {nickname}
             </h1>
             <p className="text-gray-600">סיבוב {roomState.current_round}</p>
           </div>
@@ -142,34 +172,42 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           {/* Left Panel - Players */}
           <div className="lg:col-span-1">
             <Card className="bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users size={20} />
-                  שחקנים ({connectedPlayers.length})
-                </CardTitle>
+              <CardHeader 
+                className="cursor-pointer"
+                onClick={() => setPlayersExpanded(!playersExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users size={20} />
+                    שחקנים ({connectedPlayers.length})
+                  </CardTitle>
+                  {playersExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {connectedPlayers.map((player) => (
-                  <div 
-                    key={player.nickname}
-                    data-testid={`player-${player.nickname}`}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      {player.is_admin && <Crown size={16} className="text-yellow-500" />}
-                      <span className="font-medium">{player.nickname}</span>
-                      {player.nickname === nickname && (
-                        <Badge variant="secondary" className="text-xs">אתה</Badge>
+              {playersExpanded && (
+                <CardContent className="space-y-3">
+                  {connectedPlayers.map((player) => (
+                    <div 
+                      key={player.nickname}
+                      data-testid={`player-${player.nickname}`}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        {player.is_admin && <Crown size={16} className="text-yellow-500" />}
+                        <span className="font-medium">{player.nickname}</span>
+                        {player.nickname === nickname && (
+                          <Badge variant="secondary" className="text-xs">אתה</Badge>
+                        )}
+                      </div>
+                      {roomState.game_status === "choosing" && (
+                        player.has_chosen ? 
+                          <CheckCircle2 size={18} className="text-green-500" /> :
+                          <Circle size={18} className="text-gray-300" />
                       )}
                     </div>
-                    {roomState.game_status === "choosing" && (
-                      player.has_chosen ? 
-                        <CheckCircle2 size={18} className="text-green-500" /> :
-                        <Circle size={18} className="text-gray-300" />
-                    )}
-                  </div>
-                ))}
-              </CardContent>
+                  ))}
+                </CardContent>
+              )}
             </Card>
           </div>
 
@@ -210,7 +248,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 <CardHeader>
                   <CardTitle>בחר את המספר שלך</CardTitle>
                   <CardDescription>
-                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לסכום כפול 0.8
+                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול 0.8
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
@@ -225,17 +263,33 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                     <Slider
                       data-testid="number-slider"
                       value={selectedNumber}
-                      onValueChange={setSelectedNumber}
+                      onValueChange={handleSliderChange}
                       max={100}
                       step={1}
                       disabled={hasChosen}
                       className="mb-4"
                     />
-                    <div className="flex justify-between text-sm text-gray-500">
+                    <div className="flex justify-between text-sm text-gray-500 mb-6">
                       <span>0</span>
                       <span>50</span>
                       <span>100</span>
                     </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <label className="block text-sm font-medium mb-2 text-right">
+                      או הזן מספר ישירות:
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={inputNumber}
+                      onChange={handleInputChange}
+                      disabled={hasChosen}
+                      className="text-lg text-center h-12"
+                      placeholder="0-100"
+                    />
                   </div>
                   
                   <Button
@@ -244,7 +298,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                     disabled={hasChosen}
                     className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
                   >
-                    {hasChosen ? "נבחר - ממתין לשחקנים אחרים" : "אשר בחירה"}
+                    {hasChosen ? `אישרת: ${selectedNumber[0]} - ממתין לשחקנים אחרים` : `אשר בחירה: ${selectedNumber[0]}`}
                   </Button>
                   
                   {!allChosen && (
@@ -319,13 +373,23 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                   </div>
 
                   {isAdmin && (
-                    <Button
-                      data-testid="new-round-btn"
-                      onClick={handleNewRound}
-                      className="w-full h-14 text-lg font-medium bg-green-600 hover:bg-green-700"
-                    >
-                      סיבוב חדש
-                    </Button>
+                    <div className="space-y-3">
+                      <Button
+                        data-testid="new-round-btn"
+                        onClick={handleNewRound}
+                        className="w-full h-14 text-lg font-medium bg-green-600 hover:bg-green-700"
+                      >
+                        סיבוב חדש
+                      </Button>
+                      <Button
+                        data-testid="stop-game-btn"
+                        onClick={handleStopGame}
+                        variant="outline"
+                        className="w-full h-14 text-lg font-medium"
+                      >
+                        עצור והפתח חדר
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -334,32 +398,50 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
             {/* Game History */}
             {roomState.game_history.length > 0 && (
               <Card className="mt-6 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>היסטוריית משחקים</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {roomState.game_history.slice().reverse().map((round, idx) => (
-                      <div 
-                        key={roomState.game_history.length - idx}
-                        data-testid={`history-round-${round.round_number}`}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">סיבוב {round.round_number}</span>
-                          <ArrowRight size={16} className="text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            יעד: {round.target_number}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Trophy size={16} className="text-yellow-500" />
-                          <span className="font-medium">{round.winner}</span>
-                        </div>
-                      </div>
-                    ))}
+                <CardHeader 
+                  className="cursor-pointer"
+                  onClick={() => setHistoryExpanded(!historyExpanded)}
+                >
+                  <div className="flex items-center justify-between">
+                    <CardTitle>היסטוריית משחקים</CardTitle>
+                    {historyExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </div>
-                </CardContent>
+                </CardHeader>
+                {historyExpanded && (
+                  <CardContent>
+                    <div className="space-y-2 mb-4">
+                      {roomState.game_history.slice().reverse().map((round, idx) => (
+                        <div 
+                          key={roomState.game_history.length - idx}
+                          data-testid={`history-round-${round.round_number}`}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">סיבוב {round.round_number}</span>
+                            <ArrowRight size={16} className="text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              יעד: {round.target_number}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Trophy size={16} className="text-yellow-500" />
+                            <span className="font-medium">{round.winner}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {isAdmin && (
+                      <Button
+                        data-testid="clear-history-btn"
+                        onClick={handleClearHistory}
+                        variant="destructive"
+                        className="w-full h-10"
+                      >
+                        מחק היסטוריה
+                      </Button>
+                    )}
+                  </CardContent>
+                )}
               </Card>
             )}
           </div>

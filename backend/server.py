@@ -22,6 +22,15 @@ load_dotenv(ROOT_DIR / '.env')
 # Create the main app without a prefix
 app = FastAPI()
 
+# # Add CORS middleware BEFORE including the router
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_credentials=True,
+#     allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
@@ -340,14 +349,6 @@ async def send_room_state(room_id: int):
 
 # Include the router in the main app
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # @app.on_event("shutdown")
 # async def shutdown_db_client():

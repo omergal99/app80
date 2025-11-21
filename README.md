@@ -10,13 +10,11 @@ yarn install
 LOCAL RUN:
 1. duplicate .env.copy
 2. run in terminal:
+if needed (. .venv/bin/activate)
 Terminal 1 — Backend:
-cd backend
-. .venv/bin/activate
 uvicorn server:app --reload --host 127.0.0.1 --port 8000
 
 Terminal 2 — Frontend:
-cd frontend
 yarn start
 
 

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import GameResultsModal from "./GameResultsModal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
@@ -161,6 +162,32 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
     }
   };
 
+  const handleExportHistory = () => {
+    if (!roomState || !roomState.game_history || roomState.game_history.length === 0) {
+      toast.error("אין היסטוריה לייצא");
+      return;
+    }
+
+    const historyData = {
+      roomId: roomState.room_id,
+      exportDate: new Date().toISOString(),
+      totalRounds: roomState.game_history.length,
+      history: roomState.game_history
+    };
+
+    const dataStr = JSON.stringify(historyData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `game_history_room_${roomState.room_id}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("ההיסטוריה ייוצאה בהצלחה");
+  };
+
   if (!roomState) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,97 +206,11 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
     <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         {/* History Round Modal */}
-        {selectedHistoryRound && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <Card className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy size={24} className="text-yellow-500" />
-                    תוצאות סיבוב {selectedHistoryRound.round_number}
-                  </CardTitle>
-                  <Button 
-                    onClick={() => setSelectedHistoryRound(null)}
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                  >
-                    ✕
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-2">המספר היעד</div>
-                  <div 
-                    className="text-5xl font-bold text-blue-600" 
-                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-                  >
-                    {selectedHistoryRound.target_number}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-4 space-y-2">
-                    <div>
-                      סכום: <span className="font-semibold text-gray-700">{selectedHistoryRound.total_sum}</span>
-                    </div>
-                    <div>
-                      ממוצע: <span className="font-semibold text-gray-700">{selectedHistoryRound.average}</span>
-                    </div>
-                    <div>
-                      ממוצע × 0.8: <span className="font-semibold text-gray-700">{selectedHistoryRound.target_number}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  {Object.entries(selectedHistoryRound.players_data)
-                    .sort(([, a], [, b]) => 
-                      Math.abs(a - selectedHistoryRound.target_number) - Math.abs(b - selectedHistoryRound.target_number)
-                    )
-                    .map(([playerName, number]) => {
-                      const isWinner = playerName === selectedHistoryRound.winner;
-                      const isCurrentPlayer = playerName === nickname;
-                      const distance = Math.abs(number - selectedHistoryRound.target_number);
-                      
-                      return (
-                        <div
-                          key={playerName}
-                          className={`flex flex-col p-4 rounded-lg transition-all ${
-                            isWinner 
-                              ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg' 
-                              : isCurrentPlayer
-                              ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
-                              : 'bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {isWinner && <Trophy size={20} className="text-yellow-600" />}
-                              <span className={`font-medium text-lg ${isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''}`}>
-                                {playerName}
-                              </span>
-                              {isCurrentPlayer && !isWinner && (
-                                <Badge variant="secondary" className="bg-blue-200 text-blue-800">אתה</Badge>
-                              )}
-                              {isWinner && (
-                                <Badge className="bg-yellow-500 text-white font-bold">🎉 מנצח!</Badge>
-                              )}
-                            </div>
-                            <div className="text-left">
-                              <div className="text-2xl font-bold">{number}</div>
-                              <div className="text-xs text-gray-500">
-                                מרחק: {distance.toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <GameResultsModal 
+          round={selectedHistoryRound} 
+          nickname={nickname}
+          onClose={() => setSelectedHistoryRound(null)}
+        />
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -647,14 +588,24 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                       ))}
                     </div>
                     {isAdmin && (
-                      <Button
-                        data-testid="clear-history-btn"
-                        onClick={handleClearHistory}
-                        variant="destructive"
-                        className="w-full h-10"
-                      >
-                        מחק היסטוריה
-                      </Button>
+                      <div className="space-y-2">
+                        <Button
+                          data-testid="export-history-btn"
+                          onClick={handleExportHistory}
+                          variant="outline"
+                          className="w-full h-10"
+                        >
+                          ⬇️ ייצא היסטוריה
+                        </Button>
+                        <Button
+                          data-testid="clear-history-btn"
+                          onClick={handleClearHistory}
+                          variant="destructive"
+                          className="w-full h-10"
+                        >
+                          מחק היסטוריה
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 )}

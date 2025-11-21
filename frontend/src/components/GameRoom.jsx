@@ -342,31 +342,46 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                       )
                       .map(([playerName, number]) => {
                         const isWinner = playerName === latestRound.winner;
+                        const isCurrentPlayer = playerName === nickname;
                         const distance = Math.abs(number - latestRound.target_number);
                         
                         return (
                           <div
                             key={playerName}
                             data-testid={`result-${playerName}`}
-                            className={`flex items-center justify-between p-4 rounded-lg ${
+                            className={`flex flex-col p-4 rounded-lg transition-all ${
                               isWinner 
-                                ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-300' 
+                                ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg' 
+                                : isCurrentPlayer
+                                ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
                                 : 'bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
-                              {isWinner && <Trophy size={20} className="text-yellow-600" />}
-                              <span className="font-medium text-lg">{playerName}</span>
-                              {isWinner && (
-                                <Badge className="bg-yellow-500">מנצח!</Badge>
-                              )}
-                            </div>
-                            <div className="text-left">
-                              <div className="text-2xl font-bold">{number}</div>
-                              <div className="text-xs text-gray-500">
-                                מרחק: {distance.toFixed(2)}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {isWinner && <Trophy size={20} className="text-yellow-600" />}
+                                <span className={`font-medium text-lg ${isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''}`}>
+                                  {playerName}
+                                </span>
+                                {isCurrentPlayer && !isWinner && (
+                                  <Badge variant="secondary" className="bg-blue-200 text-blue-800">אתה</Badge>
+                                )}
+                                {isWinner && (
+                                  <Badge className="bg-yellow-500 text-white font-bold">🎉 מנצח!</Badge>
+                                )}
+                              </div>
+                              <div className="text-left">
+                                <div className="text-2xl font-bold">{number}</div>
+                                <div className="text-xs text-gray-500">
+                                  מרחק: {distance.toFixed(2)}
+                                </div>
                               </div>
                             </div>
+                            {isWinner && isCurrentPlayer && (
+                              <div className="mt-2 text-center text-yellow-700 font-bold text-sm">
+                                🏆 אתה המנצח בסיבוב זה! 🏆
+                              </div>
+                            )}
                           </div>
                         );
                       })}

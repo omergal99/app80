@@ -86,12 +86,30 @@ class ConnectionManager:
             await websocket.close()
             return False
         
-        # Add player
-        if nickname not in room.players:
-            is_admin = len(room.players) == 0
+        # Add player or reconnect existing
+        is_new_player = nickname not in room.players
+        
+        if is_new_player:
+            # New player - check if room needs an admin
+            connected_players = [p for p in room.players.values() if p.connected]
+            has_admin = any(p.is_admin for p in connected_players)
+            is_admin = len(connected_players) == 0 or not has_admin
             room.players[nickname] = Player(nickname=nickname, is_admin=is_admin)
         else:
+            # Reconnecting player
             room.players[nickname].connected = True
+        
+        # Ensure only ONE admin exists among ALL players (not just connected)
+        admin_count = sum(1 for p in room.players.values() if p.is_admin)
+        if admin_count > 1:
+            # Keep admin status only for the first admin, remove from others
+            found_admin = False
+            for p in room.players.values():
+                if p.is_admin:
+                    if found_admin:
+                        p.is_admin = False
+                    else:
+                        found_admin = True
         
         room_connections[room_id][nickname] = websocket
         return True
@@ -104,12 +122,14 @@ class ConnectionManager:
             was_admin = room.players[nickname].is_admin
             room.players[nickname].connected = False
             
-            # If admin disconnected, promote next connected player
+            # If admin disconnected, promote next connected player (only if no other admin)
             if was_admin:
-                for player in room.players.values():
-                    if player.connected:
-                        player.is_admin = True
-                        break
+                admin_exists = any(p.is_admin and p.connected for p in room.players.values())
+                if not admin_exists:
+                    for player in room.players.values():
+                        if player.connected:
+                            player.is_admin = True
+                            break
             
         # Clean up room if no connected players
         if not any(p.connected for p in room.players.values()):
@@ -209,6 +229,19 @@ async def handle_message(room_id: int, nickname: str, data: dict):
             room.game_status = "waiting"
             for player in room.players.values():
                 player.number = None
+            
+            # Ensure only one admin exists among connected players
+            admin_count = sum(1 for p in room.players.values() if p.is_admin and p.connected)
+            if admin_count > 1:
+                # Remove admin from all but the first connected admin
+                found_admin = False
+                for player in room.players.values():
+                    if player.connected and player.is_admin:
+                        if found_admin:
+                            player.is_admin = False
+                        else:
+                            found_admin = True
+            
             await send_room_state(room_id)
     
     elif action == "clear_history":

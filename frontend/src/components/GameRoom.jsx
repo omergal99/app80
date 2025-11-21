@@ -18,6 +18,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   const [hasChosen, setHasChosen] = useState(false);
   const [playersExpanded, setPlayersExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(true);
+  const [multiplierInput, setMultiplierInput] = useState("0.8");
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -50,6 +51,11 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           onLeave();
         } else if (data.type === "room_state") {
           setRoomState(data);
+          
+          // Sync multiplier input with room state
+          if (data.multiplier) {
+            setMultiplierInput(data.multiplier.toString());
+          }
           
           // Check if current player has chosen
           const currentPlayer = data.players.find(p => p.nickname === nickname);
@@ -126,6 +132,16 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   const handleClearHistory = () => {
     if (window.confirm("האם אתה בטוח שתרצה למחוק את ההיסטוריה?")) {
       sendMessage({ action: "clear_history" });
+    }
+  };
+
+  const handleSetMultiplier = () => {
+    const multiplier = parseFloat(multiplierInput);
+    if (!isNaN(multiplier) && multiplier >= 0.1 && multiplier <= 1.9) {
+      sendMessage({ action: "set_multiplier", multiplier });
+      toast.success(`מכפיל עדכן ל-${multiplier}`);
+    } else {
+      toast.error("מכפיל חייב להיות בין 0.1 ל-1.9");
     }
   };
 
@@ -223,20 +239,50 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                       : "מוכן להתחיל!"}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   {isAdmin && (
-                    <Button
-                      data-testid="start-game-btn"
-                      onClick={handleStartGame}
-                      disabled={connectedPlayers.length < 2}
-                      className="w-full h-14 text-lg font-medium bg-green-600 hover:bg-green-700"
-                    >
-                      התחל משחק
-                    </Button>
+                    <>
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <label className="block text-sm font-medium mb-3 text-right">
+                          הגדר מכפיל למשחק (0.1 - 1.9)
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            min="0.1"
+                            max="1.9"
+                            step="0.1"
+                            value={multiplierInput}
+                            onChange={(e) => setMultiplierInput(e.target.value)}
+                            className="text-center h-10"
+                            placeholder="0.8"
+                          />
+                          <Button
+                            onClick={handleSetMultiplier}
+                            variant="outline"
+                            className="px-4"
+                          >
+                            עדכן
+                          </Button>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-2">
+                          היעד יחושב כ: (סכום מספרים) × {roomState.multiplier}
+                        </div>
+                      </div>
+                      <Button
+                        data-testid="start-game-btn"
+                        onClick={handleStartGame}
+                        disabled={connectedPlayers.length < 2}
+                        className="w-full h-14 text-lg font-medium bg-green-600 hover:bg-green-700"
+                      >
+                        התחל משחק
+                      </Button>
+                    </>
                   )}
                   {!isAdmin && (
                     <div className="text-center text-gray-600 py-8">
                       ממתין למנהל החדר להתחיל את המשחק...
+                      <div className="text-sm mt-2">מכפיל: {roomState.multiplier}</div>
                     </div>
                   )}
                 </CardContent>
@@ -248,7 +294,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 <CardHeader>
                   <CardTitle>בחר את המספר שלך</CardTitle>
                   <CardDescription>
-                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול 0.8
+                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">

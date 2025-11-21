@@ -26,9 +26,12 @@ yarn build
 
 HOST CONFIG:
 1. Backend:
+Language: Python 3
+Root Directory: ./backend
 Build Command: pip install -r requirements.txt
 Start Command: uvicorn server:app --host 0.0.0.0 --port $PORT
 2. Frontend:
+Root Directory: ./frontend
 Build Command: yarn build or npm run build
 Publish Directory: build/
 

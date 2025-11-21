@@ -52,6 +52,7 @@ class RoomState(BaseModel):
     game_status: str = "waiting"  # waiting, choosing, results
     current_round: int = 0
     game_history: List[GameRound] = []
+    multiplier: float = 0.8  # Configurable multiplier (0.1 to 1.9)
 
 # In-memory storage for 4 rooms
 rooms: Dict[int, RoomState] = {
@@ -248,15 +249,22 @@ async def handle_message(room_id: int, nickname: str, data: dict):
         if room.players[nickname].is_admin:
             room.game_history = []
             await send_room_state(room_id)
+    
+    elif action == "set_multiplier":
+        if room.players[nickname].is_admin and room.game_status == "waiting":
+            multiplier = data.get("multiplier")
+            if multiplier is not None and 0.1 <= multiplier <= 1.9:
+                room.multiplier = multiplier
+                await send_room_state(room_id)
 
 async def calculate_winner(room_id: int):
     room = rooms[room_id]
     
-    # Calculate average and target
+    # Calculate average and target using room's multiplier
     numbers = [p.number for p in room.players.values() if p.connected and p.number is not None]
     total_sum = sum(numbers)
     average = total_sum / len(numbers) if numbers else 0
-    target = average * 0.8
+    target = average * room.multiplier
     
     # Find winner (closest to target)
     winner = None
@@ -303,6 +311,7 @@ async def send_room_state(room_id: int):
         "players": players_list,
         "game_status": room.game_status,
         "current_round": room.current_round,
+        "multiplier": room.multiplier,
         "game_history": [h.model_dump() for h in room.game_history]
     }
     

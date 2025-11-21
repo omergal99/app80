@@ -19,17 +19,21 @@ load_dotenv(ROOT_DIR / '.env')
 # client = AsyncIOMotorClient(mongo_url)
 # db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
 
-# # Add CORS middleware BEFORE including the router
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_credentials=True,
-#     allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = os.getenv("CORS_ORIGINS", "").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")

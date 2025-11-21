@@ -9,6 +9,7 @@ import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, Ch
 import { toast } from "sonner";
 import GameResultsModal from "./GameResultsModal";
 import { WS_URL } from "@/services/backendService";
+import { getRoomNamesByIndex } from "./roomHelpers";
 
 export default function GameRoom({ roomId, nickname, onLeave }) {
   const [roomState, setRoomState] = useState(null);
@@ -25,7 +26,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
 
   useEffect(() => {
     connectWebSocket();
-    
+
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -39,14 +40,14 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   const connectWebSocket = () => {
     try {
       const ws = new WebSocket(`${WS_URL}/api/ws/${roomId}/${encodeURIComponent(nickname)}`);
-      
+
       ws.onopen = () => {
         console.log("WebSocket connected");
       };
-      
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === "error") {
           toast.error(data.message);
           onLeave();
@@ -55,28 +56,28 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           if (currentPlayer) {
             setHasChosen(currentPlayer.has_chosen);
           }
-          
+
           // Only reset selection when entering a NEW choosing phase (round changed and current player hasn't chosen)
           if (data.game_status === "choosing" && previousRound !== data.current_round && !currentPlayer?.has_chosen) {
             setSelectedNumber([50]);
             setInputNumber("50");
             setHasChosen(false);
           }
-          
+
           setPreviousRound(data.current_round);
           setRoomState(data);
-          
+
           // Sync multiplier input with room state
           if (data.multiplier) {
             setMultiplierInput(data.multiplier.toString());
           }
         }
       };
-      
+
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
-      
+
       ws.onclose = () => {
         console.log("WebSocket disconnected");
         // Attempt reconnect after 3 seconds
@@ -84,7 +85,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           connectWebSocket();
         }, 3000);
       };
-      
+
       wsRef.current = ws;
     } catch (error) {
       console.error("Failed to connect WebSocket:", error);
@@ -106,7 +107,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   const handleInputChange = (e) => {
     const value = e.target.value;
     setInputNumber(value);
-    
+
     // Update slider if valid number
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= 0 && num <= 100) {
@@ -204,27 +205,30 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
     <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         {/* History Round Modal */}
-        <GameResultsModal 
-          round={selectedHistoryRound} 
+        <GameResultsModal
+          round={selectedHistoryRound}
           nickname={nickname}
           onClose={() => setSelectedHistoryRound(null)}
         />
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between items-baseline mb-8">
           <div>
-            <h1 
-              className="text-4xl font-bold mb-2" 
+            <h1
+              className="text-3xl font-bold mb-2"
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               data-testid="room-title"
             >
-              חדר {roomId} - {nickname}
+              {getRoomNamesByIndex(roomId)}
             </h1>
-            <p className="text-gray-600">סיבוב {roomState.current_round}</p>
+            <p className="text-2xl text-gray-700 flex gap-8">
+              <span>סיבוב {roomState.current_round}</span>
+              <span>שם הילד/ה: {nickname}</span>
+            </p>
           </div>
-          <Button 
+          <Button
             data-testid="leave-room-btn"
-            onClick={onLeave} 
+            onClick={onLeave}
             variant="outline"
             className="h-11 px-6"
           >
@@ -236,7 +240,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           {/* Left Panel - Players */}
           <div className="lg:col-span-1">
             <Card className="bg-white/80 backdrop-blur-sm">
-              <CardHeader 
+              <CardHeader
                 className="cursor-pointer"
                 onClick={() => setPlayersExpanded(!playersExpanded)}
               >
@@ -251,14 +255,13 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
               {playersExpanded && (
                 <CardContent className="space-y-3">
                   {connectedPlayers.map((player) => (
-                    <div 
+                    <div
                       key={player.nickname}
                       data-testid={`player-${player.nickname}`}
-                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                        player.nickname === nickname 
-                          ? 'bg-blue-100 border-2 border-blue-300' 
+                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${player.nickname === nickname
+                          ? 'bg-blue-100 border-2 border-blue-300'
                           : 'bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         {player.is_admin && <Crown size={16} className="text-yellow-500" />}
@@ -268,7 +271,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                         )}
                       </div>
                       {roomState.game_status === "choosing" && (
-                        player.has_chosen ? 
+                        player.has_chosen ?
                           <CheckCircle2 size={18} className="text-green-500" /> :
                           <Circle size={18} className="text-gray-300" />
                       )}
@@ -286,7 +289,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 <CardHeader>
                   <CardTitle>ממתין לתחילת המשחק</CardTitle>
                   <CardDescription>
-                    {connectedPlayers.length < 2 
+                    {connectedPlayers.length < 2
                       ? "נדרשים לפחות 2 שחקנים להתחלת המשחק"
                       : "מוכן להתחיל!"}
                   </CardDescription>
@@ -351,8 +354,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 </CardHeader>
                 <CardContent className="space-y-8">
                   <div className="text-center">
-                    <div 
-                      className="text-6xl font-bold mb-6" 
+                    <div
+                      className="text-6xl font-bold mb-6"
                       style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                       data-testid="selected-number-display"
                     >
@@ -389,7 +392,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                       placeholder="0-100"
                     />
                   </div>
-                  
+
                   <Button
                     data-testid="submit-number-btn"
                     onClick={handleChooseNumber}
@@ -398,7 +401,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                   >
                     {hasChosen ? `אישרת: ${selectedNumber[0]} - ממתין לשחקנים אחרים` : `אשר בחירה: ${selectedNumber[0]}`}
                   </Button>
-                  
+
                   {!allChosen && (
                     <div className="space-y-4">
                       <div className="text-center text-gray-600">
@@ -417,7 +420,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                           </Button>
                           <div className="text-xs text-orange-700 space-y-2">
                             {connectedPlayers.filter(p => !p.has_chosen).map(player => (
-                              <div 
+                              <div
                                 key={player.nickname}
                                 className="flex items-center justify-between bg-white p-2 rounded"
                               >
@@ -452,8 +455,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 <CardContent className="space-y-6">
                   <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
                     <div className="text-sm text-gray-600 mb-2">המספר היעד</div>
-                    <div 
-                      className="text-5xl font-bold text-blue-600" 
+                    <div
+                      className="text-5xl font-bold text-blue-600"
                       style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                       data-testid="target-number"
                     >
@@ -476,25 +479,24 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
 
                   <div className="space-y-3">
                     {Object.entries(latestRound.players_data)
-                      .sort(([, a], [, b]) => 
+                      .sort(([, a], [, b]) =>
                         Math.abs(a - latestRound.target_number) - Math.abs(b - latestRound.target_number)
                       )
                       .map(([playerName, number]) => {
                         const isWinner = playerName === latestRound.winner;
                         const isCurrentPlayer = playerName === nickname;
                         const distance = Math.abs(number - latestRound.target_number);
-                        
+
                         return (
                           <div
                             key={playerName}
                             data-testid={`result-${playerName}`}
-                            className={`flex flex-col p-4 rounded-lg transition-all ${
-                              isWinner 
-                                ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg' 
+                            className={`flex flex-col p-4 rounded-lg transition-all ${isWinner
+                                ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg'
                                 : isCurrentPlayer
-                                ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
-                                : 'bg-gray-50'
-                            }`}
+                                  ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
+                                  : 'bg-gray-50'
+                              }`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
@@ -552,7 +554,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
             {/* Game History */}
             {roomState.game_history.length > 0 && (
               <Card className="mt-6 bg-white/80 backdrop-blur-sm">
-                <CardHeader 
+                <CardHeader
                   className="cursor-pointer"
                   onClick={() => setHistoryExpanded(!historyExpanded)}
                 >
@@ -565,7 +567,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                   <CardContent>
                     <div className="space-y-2 mb-4">
                       {roomState.game_history.slice().reverse().map((round, idx) => (
-                        <div 
+                        <div
                           key={roomState.game_history.length - idx}
                           data-testid={`history-round-${round.round_number}`}
                           onClick={() => setSelectedHistoryRound(round)}

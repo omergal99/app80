@@ -19,6 +19,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   const [playersExpanded, setPlayersExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [multiplierInput, setMultiplierInput] = useState("0.8");
+  const [previousRound, setPreviousRound] = useState(null);
+  const [selectedHistoryRound, setSelectedHistoryRound] = useState(null);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -50,23 +52,24 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           toast.error(data.message);
           onLeave();
         } else if (data.type === "room_state") {
-          setRoomState(data);
-          
-          // Sync multiplier input with room state
-          if (data.multiplier) {
-            setMultiplierInput(data.multiplier.toString());
-          }
-          
-          // Check if current player has chosen
           const currentPlayer = data.players.find(p => p.nickname === nickname);
           if (currentPlayer) {
             setHasChosen(currentPlayer.has_chosen);
           }
           
-          // Reset selection for new round
-          if (data.game_status === "choosing" && !currentPlayer?.has_chosen) {
+          // Only reset selection when entering a NEW choosing phase (round changed and current player hasn't chosen)
+          if (data.game_status === "choosing" && previousRound !== data.current_round && !currentPlayer?.has_chosen) {
             setSelectedNumber([50]);
+            setInputNumber("50");
             setHasChosen(false);
+          }
+          
+          setPreviousRound(data.current_round);
+          setRoomState(data);
+          
+          // Sync multiplier input with room state
+          if (data.multiplier) {
+            setMultiplierInput(data.multiplier.toString());
           }
         }
       };
@@ -145,6 +148,19 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
     }
   };
 
+  const handleRemovePlayer = (playerNickname) => {
+    if (window.confirm(`האם אתה בטוח שתרצה להסיר את ${playerNickname} מהסיבוב?`)) {
+      sendMessage({ action: "remove_player", target_nickname: playerNickname });
+      toast.info(`${playerNickname} הוסר מהסיבוב`);
+    }
+  };
+
+  const handleForceFinish = () => {
+    if (window.confirm("האם אתה בטוח שתרצה לסיים את הסיבוב? שחקנים שלא בחרו לא ישתתפו.")) {
+      sendMessage({ action: "force_finish_round" });
+    }
+  };
+
   if (!roomState) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -162,6 +178,99 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
+        {/* History Round Modal */}
+        {selectedHistoryRound && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <Card className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy size={24} className="text-yellow-500" />
+                    תוצאות סיבוב {selectedHistoryRound.round_number}
+                  </CardTitle>
+                  <Button 
+                    onClick={() => setSelectedHistoryRound(null)}
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-2">המספר היעד</div>
+                  <div 
+                    className="text-5xl font-bold text-blue-600" 
+                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {selectedHistoryRound.target_number}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-4 space-y-2">
+                    <div>
+                      סכום: <span className="font-semibold text-gray-700">{selectedHistoryRound.total_sum}</span>
+                    </div>
+                    <div>
+                      ממוצע: <span className="font-semibold text-gray-700">{selectedHistoryRound.average}</span>
+                    </div>
+                    <div>
+                      ממוצע × 0.8: <span className="font-semibold text-gray-700">{selectedHistoryRound.target_number}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  {Object.entries(selectedHistoryRound.players_data)
+                    .sort(([, a], [, b]) => 
+                      Math.abs(a - selectedHistoryRound.target_number) - Math.abs(b - selectedHistoryRound.target_number)
+                    )
+                    .map(([playerName, number]) => {
+                      const isWinner = playerName === selectedHistoryRound.winner;
+                      const isCurrentPlayer = playerName === nickname;
+                      const distance = Math.abs(number - selectedHistoryRound.target_number);
+                      
+                      return (
+                        <div
+                          key={playerName}
+                          className={`flex flex-col p-4 rounded-lg transition-all ${
+                            isWinner 
+                              ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg' 
+                              : isCurrentPlayer
+                              ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
+                              : 'bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {isWinner && <Trophy size={20} className="text-yellow-600" />}
+                              <span className={`font-medium text-lg ${isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''}`}>
+                                {playerName}
+                              </span>
+                              {isCurrentPlayer && !isWinner && (
+                                <Badge variant="secondary" className="bg-blue-200 text-blue-800">אתה</Badge>
+                              )}
+                              {isWinner && (
+                                <Badge className="bg-yellow-500 text-white font-bold">🎉 מנצח!</Badge>
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <div className="text-2xl font-bold">{number}</div>
+                              <div className="text-xs text-gray-500">
+                                מרחק: {distance.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -206,13 +315,17 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                     <div 
                       key={player.nickname}
                       data-testid={`player-${player.nickname}`}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                        player.nickname === nickname 
+                          ? 'bg-blue-100 border-2 border-blue-300' 
+                          : 'bg-gray-50'
+                      }`}
                     >
                       <div className="flex items-center gap-2">
                         {player.is_admin && <Crown size={16} className="text-yellow-500" />}
-                        <span className="font-medium">{player.nickname}</span>
+                        <span className={`font-medium ${player.nickname === nickname ? 'text-blue-700' : ''}`}>{player.nickname}</span>
                         {player.nickname === nickname && (
-                          <Badge variant="secondary" className="text-xs">אתה</Badge>
+                          <Badge className="bg-blue-600 text-white text-xs">אתה</Badge>
                         )}
                       </div>
                       {roomState.game_status === "choosing" && (
@@ -348,8 +461,41 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                   </Button>
                   
                   {!allChosen && (
-                    <div className="text-center text-gray-600">
-                      {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו
+                    <div className="space-y-4">
+                      <div className="text-center text-gray-600">
+                        {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו
+                      </div>
+                      {isAdmin && (
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
+                          <div className="text-sm font-medium text-orange-900">אפשרויות מנהל</div>
+                          <Button
+                            data-testid="force-finish-btn"
+                            onClick={handleForceFinish}
+                            variant="outline"
+                            className="w-full h-10 text-sm border-orange-300 hover:bg-orange-100"
+                          >
+                            סיים סיבוב (שחקנים שלא בחרו לא ישתתפו)
+                          </Button>
+                          <div className="text-xs text-orange-700 space-y-2">
+                            {connectedPlayers.filter(p => !p.has_chosen).map(player => (
+                              <div 
+                                key={player.nickname}
+                                className="flex items-center justify-between bg-white p-2 rounded"
+                              >
+                                <span>{player.nickname}</span>
+                                <Button
+                                  onClick={() => handleRemovePlayer(player.nickname)}
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-6 text-xs px-2"
+                                >
+                                  הסר
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -374,8 +520,16 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                     >
                       {latestRound.target_number}
                     </div>
-                    <div className="text-sm text-gray-500 mt-2">
-                      (סכום: {Object.values(latestRound.players_data).reduce((a, b) => a + b, 0)} × 0.8)
+                    <div className="text-sm text-gray-500 mt-4 space-y-2">
+                      <div>
+                        סכום: <span className="font-semibold text-gray-700">{latestRound.total_sum}</span>
+                      </div>
+                      <div>
+                        ממוצע: <span className="font-semibold text-gray-700">{latestRound.average}</span>
+                      </div>
+                      <div>
+                        ממוצע × 0.8: <span className="font-semibold text-gray-700">{latestRound.target_number}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -475,7 +629,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                         <div 
                           key={roomState.game_history.length - idx}
                           data-testid={`history-round-${round.round_number}`}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          onClick={() => setSelectedHistoryRound(round)}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 hover:shadow-md cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-3">
                             <span className="font-medium">סיבוב {round.round_number}</span>

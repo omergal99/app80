@@ -42,6 +42,8 @@ class Player(BaseModel):
 class GameRound(BaseModel):
     round_number: int
     players_data: Dict[str, int]  # nickname -> number
+    total_sum: float
+    average: float
     target_number: float
     winner: str
     timestamp: str
@@ -97,7 +99,7 @@ class ConnectionManager:
             is_admin = len(connected_players) == 0 or not has_admin
             room.players[nickname] = Player(nickname=nickname, is_admin=is_admin)
         else:
-            # Reconnecting player
+            # Reconnecting player - keep their previous admin status
             room.players[nickname].connected = True
         
         # Ensure only ONE admin exists among ALL players (not just connected)
@@ -197,7 +199,8 @@ async def handle_message(room_id: int, nickname: str, data: dict):
     action = data.get("action")
     
     if action == "start_game":
-        if room.players[nickname].is_admin and len(room.players) >= 2:
+        connected_players = [p for p in room.players.values() if p.connected]
+        if room.players[nickname].is_admin and len(connected_players) >= 2:
             room.game_status = "choosing"
             room.current_round += 1
             # Reset all numbers
@@ -256,6 +259,22 @@ async def handle_message(room_id: int, nickname: str, data: dict):
             if multiplier is not None and 0.1 <= multiplier <= 1.9:
                 room.multiplier = multiplier
                 await send_room_state(room_id)
+    
+    elif action == "remove_player":
+        if room.players[nickname].is_admin and room.game_status == "choosing":
+            target_nickname = data.get("target_nickname")
+            if target_nickname in room.players and target_nickname != nickname:
+                room.players[target_nickname].connected = False
+                # Check if remaining players all chose
+                remaining_players = [p for p in room.players.values() if p.connected]
+                if remaining_players and all(p.number is not None for p in remaining_players):
+                    await calculate_winner(room_id)
+                else:
+                    await send_room_state(room_id)
+    
+    elif action == "force_finish_round":
+        if room.players[nickname].is_admin and room.game_status == "choosing":
+            await calculate_winner(room_id)
 
 async def calculate_winner(room_id: int):
     room = rooms[room_id]
@@ -282,6 +301,8 @@ async def calculate_winner(room_id: int):
     game_round = GameRound(
         round_number=room.current_round,
         players_data=players_data,
+        total_sum=total_sum,
+        average=round(average, 2),
         target_number=round(target, 2),
         winner=winner,
         timestamp=datetime.now(timezone.utc).isoformat()

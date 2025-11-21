@@ -8,9 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import GameResultsModal from "./GameResultsModal";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+import { WS_URL } from "@/services/backendService";
 
 export default function GameRoom({ roomId, nickname, onLeave }) {
   const [roomState, setRoomState] = useState(null);

@@ -5,9 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users } from "lucide-react";
 import { toast } from "sonner";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API_URL } from "@/services/backendService";
 
 export default function RoomSelection({ onJoinRoom }) {
   const [rooms, setRooms] = useState([]);
@@ -28,7 +26,7 @@ export default function RoomSelection({ onJoinRoom }) {
 
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`${API}/rooms`);
+      const response = await axios.get(`${API_URL}/rooms`);
       setRooms(response.data);
     } catch (error) {
       console.error("Error fetching rooms:", error);

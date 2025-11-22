@@ -4,16 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import GameResultsModal from "./GameResultsModal";
 import ResultsDisplay from "./ResultsDisplay";
 import { WS_URL } from "@/services/backendService";
 
-export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
+export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerData, onLeave }) {
+  // Destructure player info from playerData
+  const nickname = playerData?.nickname;
+  const initialPlayerId = playerData?.playerId;
+
   const [roomState, setRoomState] = useState(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState(initialPlayerId || null);
   const [selectedNumber, setSelectedNumber] = useState([50]);
   const [inputNumber, setInputNumber] = useState("50");
   const [hasChosen, setHasChosen] = useState(false);
@@ -81,17 +84,24 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
           onLeave();
         } else if (data.type === "room_state") {
           const currentPlayer = data.players.find(p => p.nickname === nickname);
-          
+
           // Capture current player's ID on first message
           if (currentPlayer && !currentPlayerId) {
             setCurrentPlayerId(currentPlayer.player_id);
+            // Update player data with playerId and save to localStorage
+            if (onUpdatePlayerData) {
+              onUpdatePlayerData({
+                nickname: nickname,
+                playerId: currentPlayer.player_id
+              });
+            }
           }
-          
+
           // Check if current player was removed (was in room state before, not now)
           if (roomState && roomState.players.find(p => p.nickname === nickname) && !currentPlayer) {
             toast.error(`${nickname} הוסר מהסיבוב`);
           }
-          
+
           if (currentPlayer) {
             setHasChosen(currentPlayer.has_chosen);
           }
@@ -114,13 +124,13 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
           setPreviousGameStatus(data.game_status);
           setPreviousRound(data.current_round);
-          
+
           // Ensure current player is always in the room state for consistent UI display
           // This prevents situations where a player disappears from the UI
           if (data.game_status === "results" && currentPlayer && !data.players.find(p => p.nickname === nickname)) {
             data.players.push(currentPlayer);
           }
-          
+
           setRoomState(data);
 
           // Sync multiplier input with room state
@@ -162,23 +172,23 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
   const handleInputChange = (e) => {
     let value = e.target.value;
-    
+
     // Only allow digits and one decimal point
     if (!/^[\d.]*$/.test(value)) {
       return; // Reject non-numeric input
     }
-    
+
     // Validate input - only allow 0-100 with up to 2 decimal places
     if (value === '') {
       setInputNumber('');
       return;
     }
-    
+
     const num = parseFloat(value);
     if (isNaN(num) || num < 0 || num > 100) {
       return; // Reject invalid input
     }
-    
+
     // Limit to 2 decimal places
     const parts = value.split('.');
     if (parts.length > 2) {
@@ -187,7 +197,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
     if (parts[1] && parts[1].length > 2) {
       return; // Reject if more than 2 decimal places
     }
-    
+
     setInputNumber(value);
     // Store the full decimal value for display, but keep slider as integer
     setSelectedNumber([Math.round(num)]);
@@ -303,8 +313,8 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
         />
 
         {/* Header */}
-        <div className="flex items-center justify-between items-baseline mb-8">
-          <div>
+        <div className="mb-4">
+          <div className="flex items-center justify-between items-baseline">
             <h1
               className="text-3xl font-bold mb-2"
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
@@ -312,27 +322,27 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
             >
               {roomName}
             </h1>
-            <p className="text-2xl text-gray-700 flex gap-8">
-              <span>סיבוב {roomState.current_round}</span>
-              <span>כינוי שלך: {nickname}</span>
-            </p>
+            <Button
+              data-testid="leave-room-btn"
+              onClick={() => {
+                // Clear localStorage when leaving
+                localStorage.removeItem(`hideNumber_${nickname}`);
+                localStorage.removeItem(`hideNumberAfterChoosing_${nickname}`);
+                if (wsRef.current) {
+                  wsRef.current.close();
+                }
+                onLeave();
+              }}
+              variant="outline"
+              className="h-11 px-6"
+            >
+              עזוב חדר
+            </Button>
           </div>
-          <Button
-            data-testid="leave-room-btn"
-            onClick={() => {
-              // Clear localStorage when leaving
-              localStorage.removeItem(`hideNumber_${nickname}`);
-              localStorage.removeItem(`hideNumberAfterChoosing_${nickname}`);
-              if (wsRef.current) {
-                wsRef.current.close();
-              }
-              onLeave();
-            }}
-            variant="outline"
-            className="h-11 px-6"
-          >
-            עזוב חדר
-          </Button>
+          <p className="text-xl text-gray-700 flex gap-10">
+            <span>סיבוב {roomState.current_round}</span>
+            <span>כינוי שלך: {nickname}</span>
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -448,7 +458,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
             {roomState.game_status === "choosing" && (
               <Card className="bg-white/80 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle>בחר את המספר שלך</CardTitle>
+                  <CardTitle>בחר את המספר שלך - סיבוב ){roomState.current_round})</CardTitle>
                   <CardDescription>
                     בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
                   </CardDescription>
@@ -521,7 +531,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex gap-3 items-center">
                       <label className="text-sm font-medium text-right whitespace-nowrap"
-                      data-testid="number-input-label">
+                        data-testid="number-input-label">
                         או הזן ישירות:
                       </label>
                       <Input
@@ -591,9 +601,9 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                                           <span className="text-xs bg-orange-200 text-black px-2 py-0.5 rounded">
                                             עדיין לא בחר
                                           </span>
-                                        ): <span className="text-xs bg-green-300 text-black px-2 py-0.5 rounded">
-                                            בחר
-                                          </span>}
+                                        ) : <span className="text-xs bg-green-300 text-black px-2 py-0.5 rounded">
+                                          בחר
+                                        </span>}
                                       </div>
                                       <Button
                                         onClick={() => handleRemovePlayer(player.nickname)}

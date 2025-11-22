@@ -4,40 +4,51 @@ import RoomSelection from "@/components/RoomSelection";
 import GameRoom from "@/components/GameRoom";
 
 function App() {
-  const [selectedRoomId, setSelectedRoomId] = useState(null);
-  const [roomDetails, setRoomDetails] = useState(null);
-  const [nickname, setNickname] = useState("");
-
-  useEffect(() => {
-    // Check if user was in a room before refresh
+  // Initialize from localStorage immediately to prevent showing RoomSelection on refresh
+  const [selectedRoomId, setSelectedRoomId] = useState(() => {
     const lastRoomId = localStorage.getItem("lastRoomId");
-    const savedNickname = localStorage.getItem("playerNickname");
+    return lastRoomId ? parseInt(lastRoomId, 10) : null;
+  });
+  
+  const [roomDetails, setRoomDetails] = useState(() => {
     const savedRoomDetails = localStorage.getItem("lastRoomDetails");
-    
-    if (lastRoomId && savedNickname) {
-      setSelectedRoomId(parseInt(lastRoomId, 10));
-      setNickname(savedNickname);
-      
-      // Try to restore room details if available
-      if (savedRoomDetails) {
-        try {
-          setRoomDetails(JSON.parse(savedRoomDetails));
-        } catch (e) {
-          console.error("Failed to parse saved room details:", e);
-        }
+    if (savedRoomDetails) {
+      try {
+        return JSON.parse(savedRoomDetails);
+      } catch (e) {
+        console.error("Failed to parse saved room details:", e);
+        return null;
       }
     }
-  }, []);
+    return null;
+  });
+
+  // Load complete player object from localStorage (contains playerId and nickname)
+  const [playerData, setPlayerData] = useState(() => {
+    const savedPlayer = localStorage.getItem("playerData");
+    if (savedPlayer) {
+      try {
+        return JSON.parse(savedPlayer);
+      } catch (e) {
+        console.error("Failed to parse saved player data:", e);
+        return null;
+      }
+    }
+    return null;
+  });
 
   const handleJoinRoom = (roomId, playerNickname, roomName) => {
     setSelectedRoomId(roomId);
     const details = { room_id: roomId, room_name: roomName };
     setRoomDetails(details);
-    setNickname(playerNickname);
+    
+    // Save player data (nickname, will be paired with playerId from WebSocket)
+    const player = { nickname: playerNickname, playerId: null };
+    setPlayerData(player);
     
     // Save to localStorage so we can restore after refresh
     localStorage.setItem("lastRoomId", roomId.toString());
-    localStorage.setItem("playerNickname", playerNickname);
+    localStorage.setItem("playerData", JSON.stringify(player));
     localStorage.setItem("lastRoomDetails", JSON.stringify(details));
   };
 
@@ -45,19 +56,28 @@ function App() {
     // Clear all room-related data from localStorage
     localStorage.removeItem("lastRoomId");
     localStorage.removeItem("lastRoomDetails");
+    localStorage.removeItem("playerData");
+    localStorage.removeItem("playerId");
     setSelectedRoomId(null);
     setRoomDetails(null);
+    setPlayerData(null);
+  };
+
+  const updatePlayerData = (updatedPlayer) => {
+    setPlayerData(updatedPlayer);
+    localStorage.setItem("playerData", JSON.stringify(updatedPlayer));
   };
 
   return (
     <div className="App">
-      {!selectedRoomId ? (
+      {!selectedRoomId || !playerData ? (
         <RoomSelection onJoinRoom={handleJoinRoom} />
       ) : (
         <GameRoom 
           roomId={selectedRoomId}
           roomName={roomDetails?.room_name}
-          nickname={nickname} 
+          playerData={playerData}
+          onUpdatePlayerData={updatePlayerData}
           onLeave={handleLeaveRoom}
         />
       )}

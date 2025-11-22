@@ -117,8 +117,9 @@ export default function RoomSelection({ onJoinRoom }) {
                 variant="outline"
                 disabled={!nickname}
                 className="h-12 px-4 whitespace-nowrap"
+                data-testid="clear-nickname-btn"
               >
-                מחק נתונים
+                מחק נתוני שחקן
               </Button>
             </div>
           </CardContent>

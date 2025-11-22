@@ -6,7 +6,6 @@ export default function ResultsDisplay({ round, nickname, multiplier }) {
   return (
     <>
       <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-        <div className="text-sm text-gray-600 mb-2">המספר היעד</div>
         <div
           className="text-5xl font-bold text-blue-600"
           style={{ fontFamily: "'Space Grotesk', sans-serif" }}
@@ -14,7 +13,10 @@ export default function ResultsDisplay({ round, nickname, multiplier }) {
         >
           {round.target_number}
         </div>
-        <div className="text-sm text-gray-500 mt-4 space-y-2">
+        <div
+          className="text-base text-gray-500 mt-4 flex flex-wrap justify-center items-center gap-6"
+          data-testid="calculation-details"
+        >
           <div>
             סכום: <span className="font-semibold text-gray-700">{round.total_sum}</span>
           </div>
@@ -43,21 +45,19 @@ export default function ResultsDisplay({ round, nickname, multiplier }) {
               <div
                 key={playerName}
                 data-testid={`result-${playerName}`}
-                className={`flex flex-col p-2 rounded-lg transition-all ${
-                  isWinner
-                    ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg'
-                    : isCurrentPlayer
+                className={`flex flex-col p-2 rounded-lg transition-all ${isWinner
+                  ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg'
+                  : isCurrentPlayer
                     ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
                     : 'bg-gray-50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {isWinner && <Trophy size={20} className="text-yellow-600" />}
                     <span
-                      className={`font-medium text-lg ${
-                        isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''
-                      }`}
+                      className={`font-medium text-lg ${isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''
+                        }`}
                       data-testid={`result-player-name-${playerName}`}
                     >
                       {playerName}

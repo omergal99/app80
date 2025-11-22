@@ -88,8 +88,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
             setSelectedNumber([50]);
             setInputNumber("50");
             setHasChosen(false);
-            setHideNumber(false);
-            setHideNumberAfterChoosing(false);
+            // Don't reset hideNumber and hideNumberAfterChoosing - they're saved in localStorage
           }
 
           // Apply hideNumberAfterChoosing effect when player chooses
@@ -141,15 +140,36 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value;
-    setInputNumber(value);
-
-    // Allow decimal input with up to 2 decimal places
-    const num = parseFloat(value);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      // Store the full decimal value for display, but keep slider as integer
-      setSelectedNumber([Math.round(num)]);
+    let value = e.target.value;
+    
+    // Only allow digits and one decimal point
+    if (!/^[\d.]*$/.test(value)) {
+      return; // Reject non-numeric input
     }
+    
+    // Validate input - only allow 0-100 with up to 2 decimal places
+    if (value === '') {
+      setInputNumber('');
+      return;
+    }
+    
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0 || num > 100) {
+      return; // Reject invalid input
+    }
+    
+    // Limit to 2 decimal places
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      return; // Reject multiple dots
+    }
+    if (parts[1] && parts[1].length > 2) {
+      return; // Reject if more than 2 decimal places
+    }
+    
+    setInputNumber(value);
+    // Store the full decimal value for display, but keep slider as integer
+    setSelectedNumber([Math.round(num)]);
   };
 
   const handleStartGame = () => {
@@ -450,20 +470,29 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
                   {/* Slider and Input */}
                   <div className="text-center">
-                    <Slider
-                      data-testid="number-slider"
-                      value={selectedNumber}
-                      onValueChange={handleSliderChange}
-                      max={100}
-                      step={1}
-                      disabled={hasChosen}
-                      className="mb-4"
-                    />
-                    <div className="flex justify-between text-sm text-gray-500 mb-6">
-                      <span>100</span>
-                      <span>50</span>
-                      <span>0</span>
-                    </div>
+                    {!(hideNumberAfterChoosing && hasChosen) && (
+                      <>
+                        <Slider
+                          data-testid="number-slider"
+                          value={selectedNumber}
+                          onValueChange={handleSliderChange}
+                          max={100}
+                          step={1}
+                          disabled={hasChosen}
+                          className="mb-4"
+                        />
+                        <div className="flex justify-between text-sm text-gray-500 mb-6">
+                          <span>100</span>
+                          <span>50</span>
+                          <span>0</span>
+                        </div>
+                      </>
+                    )}
+                    {hideNumberAfterChoosing && hasChosen && (
+                      <div className="text-center text-gray-500 mb-6 py-8">
+                        סליידר מוסתר עד סיום הבחירה
+                      </div>
+                    )}
                   </div>
 
                   {/* Input with inline label */}
@@ -479,7 +508,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                         inputMode="decimal"
                         min="0"
                         max="100"
-                        value={hideNumber || (hideNumberAfterChoosing && hasChosen) ? "" : inputNumber}
+                        value={hideNumberAfterChoosing && hasChosen ? "" : inputNumber}
                         onChange={handleInputChange}
                         disabled={hasChosen}
                         className="text-lg text-center h-10 flex-1"

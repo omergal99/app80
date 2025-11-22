@@ -6,7 +6,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import uuid
 from datetime import datetime, timezone
 import json
@@ -61,12 +61,12 @@ def get_room_name(room_id: int) -> str:
 class Player(BaseModel):
     nickname: str
     is_admin: bool = False
-    number: Optional[int] = None
+    number: Optional[Union[int, float]] = None
     connected: bool = True
 
 class GameRound(BaseModel):
     round_number: int
-    players_data: Dict[str, int]  # nickname -> number
+    players_data: Dict[str, Union[int, float]]  # nickname -> number (can be int or float)
     total_sum: float
     average: float
     target_number: float
@@ -323,17 +323,17 @@ async def calculate_winner(room_id: int):
     
     for player in room.players.values():
         if player.connected and player.number is not None:
-            distance = abs(player.number - target)
+            distance = abs(float(player.number) - target)
             if distance < min_distance:
                 min_distance = distance
                 winner = player.nickname
     
-    # Save to history
+    # Save to history with proper typing
     players_data = {p.nickname: p.number for p in room.players.values() if p.connected}
     game_round = GameRound(
         round_number=room.current_round,
         players_data=players_data,
-        total_sum=total_sum,
+        total_sum=round(total_sum, 2),
         average=round(average, 2),
         target_number=round(target, 2),
         winner=winner,

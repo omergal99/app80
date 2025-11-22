@@ -341,7 +341,7 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
           </div>
           <p className="text-xl text-gray-700 flex gap-10">
             <span>סיבוב {roomState.current_round}</span>
-            <span>כינוי שלך: {nickname}</span>
+            <span>כינוי: {nickname}</span>
           </p>
         </div>
 

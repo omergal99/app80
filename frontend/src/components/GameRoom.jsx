@@ -5,22 +5,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
+import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import GameResultsModal from "./GameResultsModal";
 import { WS_URL } from "@/services/backendService";
-import { getRoomNamesByIndex } from "./roomHelpers";
 
-export default function GameRoom({ roomId, nickname, onLeave }) {
+export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   const [roomState, setRoomState] = useState(null);
   const [selectedNumber, setSelectedNumber] = useState([50]);
   const [inputNumber, setInputNumber] = useState("50");
   const [hasChosen, setHasChosen] = useState(false);
+  const [hideNumber, setHideNumber] = useState(false);
+  const [hideNumberAfterChoosing, setHideNumberAfterChoosing] = useState(false);
   const [playersExpanded, setPlayersExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [multiplierInput, setMultiplierInput] = useState("0.8");
   const [previousRound, setPreviousRound] = useState(null);
   const [selectedHistoryRound, setSelectedHistoryRound] = useState(null);
+  const [previousGameStatus, setPreviousGameStatus] = useState(null);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -57,13 +59,24 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
             setHasChosen(currentPlayer.has_chosen);
           }
 
-          // Only reset selection when entering a NEW choosing phase (round changed and current player hasn't chosen)
-          if (data.game_status === "choosing" && previousRound !== data.current_round && !currentPlayer?.has_chosen) {
+          // Only reset selection when transitioning from waiting to choosing status
+          // This happens at the START of the game, not on subsequent rounds
+          if (previousGameStatus === "waiting" && data.game_status === "choosing") {
             setSelectedNumber([50]);
             setInputNumber("50");
             setHasChosen(false);
+            setHideNumber(false);
+            setHideNumberAfterChoosing(false);
           }
 
+          // Apply hideNumberAfterChoosing effect when player chooses
+          if (!previousGameStatus || previousGameStatus === "choosing") {
+            if (currentPlayer?.has_chosen && hideNumberAfterChoosing) {
+              setHideNumber(true);
+            }
+          }
+
+          setPreviousGameStatus(data.game_status);
           setPreviousRound(data.current_round);
           setRoomState(data);
 
@@ -116,6 +129,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   };
 
   const handleStartGame = () => {
+    setHideNumber(false);
     sendMessage({ action: "start_game" });
   };
 
@@ -125,10 +139,12 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   };
 
   const handleNewRound = () => {
+    setHideNumber(false);
     sendMessage({ action: "new_round" });
   };
 
   const handleStopGame = () => {
+    setHideNumber(false);
     sendMessage({ action: "stop_game" });
   };
 
@@ -149,6 +165,10 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
   };
 
   const handleRemovePlayer = (playerNickname) => {
+    if (playerNickname === nickname) {
+      toast.error("לא ניתן להסיר את עצמך מהסיבוק");
+      return;
+    }
     if (window.confirm(`האם אתה בטוח שתרצה להסיר את ${playerNickname} מהסיבוב?`)) {
       sendMessage({ action: "remove_player", target_nickname: playerNickname });
       toast.info(`${playerNickname} הוסר מהסיבוב`);
@@ -219,7 +239,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               data-testid="room-title"
             >
-              {getRoomNamesByIndex(roomId)}
+              {roomName}
             </h1>
             <p className="text-2xl text-gray-700 flex gap-8">
               <span>סיבוב {roomState.current_round}</span>
@@ -228,7 +248,12 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
           </div>
           <Button
             data-testid="leave-room-btn"
-            onClick={onLeave}
+            onClick={() => {
+              if (wsRef.current) {
+                wsRef.current.close();
+              }
+              onLeave();
+            }}
             variant="outline"
             className="h-11 px-6"
           >
@@ -289,8 +314,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                 <CardHeader>
                   <CardTitle>ממתין לתחילת המשחק</CardTitle>
                   <CardDescription>
-                    {connectedPlayers.length < 2
-                      ? "נדרשים לפחות 2 שחקנים להתחלת המשחק"
+                    {connectedPlayers.length < 1
+                      ? "נדרשים לפחות שחקן 1 להתחלת המשחק"
                       : "מוכן להתחיל!"}
                   </CardDescription>
                 </CardHeader>
@@ -298,7 +323,8 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                   {isAdmin && (
                     <>
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <label className="block text-sm font-medium mb-3 text-right">
+                        <label className="block text-sm font-medium mb-3 text-right"
+                        data-testid="multiplier-label">
                           הגדר מכפיל למשחק (0.1 - 1.9)
                         </label>
                         <div className="flex gap-2">
@@ -311,6 +337,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                             onChange={(e) => setMultiplierInput(e.target.value)}
                             className="text-center h-10"
                             placeholder="0.8"
+                            data-testid="multiplier-input"
                           />
                           <Button
                             onClick={handleSetMultiplier}
@@ -321,13 +348,13 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                           </Button>
                         </div>
                         <div className="text-xs text-gray-600 mt-2">
-                          היעד יחושב כ: (סכום מספרים) × {roomState.multiplier}
+                          היעד יחושב כ: (ממוצע סכום המספרים) × {roomState.multiplier}
                         </div>
                       </div>
                       <Button
                         data-testid="start-game-btn"
                         onClick={handleStartGame}
-                        disabled={connectedPlayers.length < 2}
+                        disabled={connectedPlayers.length < 1}
                         className="w-full h-14 text-lg font-medium bg-green-600 hover:bg-green-700"
                       >
                         התחל משחק
@@ -346,21 +373,49 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
 
             {roomState.game_status === "choosing" && (
               <Card className="bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>בחר את המספר שלך</CardTitle>
-                  <CardDescription>
-                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <CardTitle>בחר את המספר שלך</CardTitle>
+                    <CardDescription>
+                      בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
+                    </CardDescription>
+                  </div>
+                  {/* Always Show Hide Controls */}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      onClick={() => setHideNumber(!hideNumber)}
+                      variant={hideNumber ? "default" : "outline"}
+                      size="sm"
+                      className="gap-2 whitespace-nowrap"
+                      data-testid="toggle-hide-number-btn"
+                    >
+                      {hideNumber ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {hideNumber ? "חשיפה גדולה" : "ללא חשיפה"}
+                    </Button>
+                    <Button
+                      onClick={() => setHideNumberAfterChoosing(!hideNumberAfterChoosing)}
+                      variant={hideNumberAfterChoosing ? "default" : "outline"}
+                      size="sm"
+                      className="whitespace-nowrap"
+                      data-testid="toggle-hide-after-choosing-btn"
+                    >
+                      {hideNumberAfterChoosing ? "✓" : "○"} הסתר לאחר בחירה
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-8">
+                <CardContent className="space-y-6">
+                  {/* Large Number Display */}
                   <div className="text-center">
                     <div
-                      className="text-6xl font-bold mb-6"
-                      style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                      className="text-5xl font-black"
                       data-testid="selected-number-display"
                     >
-                      {selectedNumber[0]}
+                      {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : selectedNumber[0]}
                     </div>
+                  </div>
+
+                  {/* Slider and Input */}
+                  <div className="text-center">
                     <Slider
                       data-testid="number-slider"
                       value={selectedNumber}
@@ -371,42 +426,50 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                       className="mb-4"
                     />
                     <div className="flex justify-between text-sm text-gray-500 mb-6">
-                      <span>0</span>
-                      <span>50</span>
                       <span>100</span>
+                      <span>50</span>
+                      <span>0</span>
                     </div>
                   </div>
 
+                  {/* Input with inline label */}
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <label className="block text-sm font-medium mb-2 text-right">
-                      או הזן מספר ישירות:
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={inputNumber}
-                      onChange={handleInputChange}
-                      disabled={hasChosen}
-                      className="text-lg text-center h-12"
-                      placeholder="0-100"
-                    />
+                    <div className="flex gap-3 items-center">
+                      <label className="text-sm font-medium text-right whitespace-nowrap">
+                        או הזן ישירות:
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={hideNumber || (hideNumberAfterChoosing && hasChosen) ? "" : inputNumber}
+                        onChange={handleInputChange}
+                        disabled={hasChosen}
+                        className="text-lg text-center h-10 flex-1"
+                        placeholder="0-100"
+                      />
+                    </div>
                   </div>
 
-                  <Button
-                    data-testid="submit-number-btn"
-                    onClick={handleChooseNumber}
-                    disabled={hasChosen}
-                    className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
-                  >
-                    {hasChosen ? `אישרת: ${selectedNumber[0]} - ממתין לשחקנים אחרים` : `אשר בחירה: ${selectedNumber[0]}`}
-                  </Button>
-
-                  {!allChosen && (
-                    <div className="space-y-4">
-                      <div className="text-center text-gray-600">
+                  {/* Submit Button and Player Count on Same Line */}
+                  <div className="space-y-2">
+                    <Button
+                      data-testid="submit-number-btn"
+                      onClick={handleChooseNumber}
+                      disabled={hasChosen}
+                      className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
+                    >
+                      {hasChosen ? `אישרת: ${hideNumberAfterChoosing ? "****" : selectedNumber[0]} - ממתין לשחקנים אחרים` : `אשר בחירה: ${selectedNumber[0]}`}
+                    </Button>
+                    {!allChosen && (
+                      <div className="text-center text-sm text-gray-600">
                         {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו
                       </div>
+                    )}
+                  </div>
+
+                  {!allChosen && (
+                    <div>
                       {isAdmin && (
                         <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
                           <div className="text-sm font-medium text-orange-900">אפשרויות מנהל</div>
@@ -427,6 +490,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                                 <span>{player.nickname}</span>
                                 <Button
                                   onClick={() => handleRemovePlayer(player.nickname)}
+                                  disabled={player.nickname === nickname}
                                   size="sm"
                                   variant="destructive"
                                   className="h-6 text-xs px-2"
@@ -491,7 +555,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                           <div
                             key={playerName}
                             data-testid={`result-${playerName}`}
-                            className={`flex flex-col p-4 rounded-lg transition-all ${isWinner
+                            className={`flex flex-col p-2 rounded-lg transition-all ${isWinner
                                 ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg'
                                 : isCurrentPlayer
                                   ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
@@ -513,7 +577,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                               </div>
                               <div className="text-left">
                                 <div className="text-2xl font-bold">{number}</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-base text-gray-500">
                                   מרחק: {distance.toFixed(2)}
                                 </div>
                               </div>
@@ -543,7 +607,7 @@ export default function GameRoom({ roomId, nickname, onLeave }) {
                         variant="outline"
                         className="w-full h-14 text-lg font-medium"
                       >
-                        עצור והפתח חדר
+                        עצור משחק ופתח חדר לשחקנים נוספים
                       </Button>
                     </div>
                   )}

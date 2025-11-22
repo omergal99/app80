@@ -62,7 +62,7 @@ export default function GameResultsModal({ round, nickname, onClose }) {
                 return (
                   <div
                     key={playerName}
-                    className={`flex flex-col p-4 rounded-lg transition-all ${
+                    className={`flex flex-col p-2 rounded-lg transition-all ${
                       isWinner 
                         ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg' 
                         : isCurrentPlayer
@@ -85,7 +85,7 @@ export default function GameResultsModal({ round, nickname, onClose }) {
                       </div>
                       <div className="text-left">
                         <div className="text-2xl font-bold">{number}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-base text-gray-700">
                           מרחק: {distance.toFixed(2)}
                         </div>
                       </div>

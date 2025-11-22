@@ -4,7 +4,8 @@ import RoomSelection from "@/components/RoomSelection";
 import GameRoom from "@/components/GameRoom";
 
 function App() {
-  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [roomDetails, setRoomDetails] = useState(null);
   const [nickname, setNickname] = useState("");
 
   useEffect(() => {
@@ -13,29 +14,32 @@ function App() {
     const savedNickname = localStorage.getItem("playerNickname");
     
     if (lastRoomId && savedNickname) {
-      setSelectedRoom(parseInt(lastRoomId, 10));
+      setSelectedRoomId(parseInt(lastRoomId, 10));
       setNickname(savedNickname);
     }
   }, []);
 
-  const handleJoinRoom = (roomId, playerNickname) => {
-    setSelectedRoom(roomId);
+  const handleJoinRoom = (roomId, playerNickname, roomName) => {
+    setSelectedRoomId(roomId);
+    setRoomDetails({ room_id: roomId, room_name: roomName });
     setNickname(playerNickname);
   };
 
   const handleLeaveRoom = () => {
     // Clear room ID but keep nickname in localStorage
     localStorage.removeItem("lastRoomId");
-    setSelectedRoom(null);
+    setSelectedRoomId(null);
+    setRoomDetails(null);
   };
 
   return (
     <div className="App">
-      {!selectedRoom ? (
+      {!selectedRoomId ? (
         <RoomSelection onJoinRoom={handleJoinRoom} />
       ) : (
         <GameRoom 
-          roomId={selectedRoom} 
+          roomId={selectedRoomId}
+          roomName={roomDetails?.room_name}
           nickname={nickname} 
           onLeave={handleLeaveRoom}
         />

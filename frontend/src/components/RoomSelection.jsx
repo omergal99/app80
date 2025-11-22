@@ -6,12 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users } from "lucide-react";
 import { toast } from "sonner";
 import { API_URL } from "@/services/backendService";
-import { getRoomNamesByIndex } from "./roomHelpers";
 
 export default function RoomSelection({ onJoinRoom }) {
   const [rooms, setRooms] = useState([]);
   const [nickname, setNickname] = useState("");
   const [loading, setLoading] = useState(false);
+  const [invalidNickname, setInvalidNickname] = useState(false);
 
   useEffect(() => {
     // Load nickname from localStorage
@@ -34,23 +34,33 @@ export default function RoomSelection({ onJoinRoom }) {
     }
   };
 
-  const handleJoin = (roomId) => {
+  const handleJoin = (roomId, roomName) => {
     if (!nickname.trim()) {
+      setInvalidNickname(true);
       toast.error("אנא הזן כינוי");
       return;
     }
 
-    if (nickname.length > 20) {
-      toast.error("הכינוי ארוך מדי (מקסימום 20 תווים)");
+    if (nickname.length > 30) {
+      toast.error("הכינוי ארוך מדי (מקסימום 30 תווים)");
       return;
     }
 
+    setInvalidNickname(false);
     // Save nickname and room to localStorage for persistence
     localStorage.setItem("playerNickname", nickname.trim());
     localStorage.setItem("lastRoomId", String(roomId));
 
     setLoading(true);
-    onJoinRoom(roomId, nickname.trim());
+    onJoinRoom(roomId, nickname.trim(), roomName);
+  };
+
+  const handleClearNickname = () => {
+    setNickname("");
+    setInvalidNickname(false);
+    localStorage.removeItem("playerNickname");
+    localStorage.removeItem("lastRoomId");
+    toast.success("נתוני השחקן נמחקו");
   };
 
   const getRoomStatus = (room) => {
@@ -83,20 +93,34 @@ export default function RoomSelection({ onJoinRoom }) {
 
         <Card className="mb-8 bg-white/80 backdrop-blur-sm border-gray-200">
           <CardHeader>
-            <CardTitle className="text-xl">הזן כינוי</CardTitle>
-            <CardDescription>בחר כינוי להצגה במשחק</CardDescription>
+            <CardTitle className="text-xl">בחר כינוי להצגה במשחק</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Input
-              data-testid="nickname-input"
-              type="text"
-              placeholder="הכינוי שלך..."
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={20}
-              className="text-lg h-12 text-right"
-              dir="rtl"
-            />
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                data-testid="nickname-input"
+                type="text"
+                placeholder="הכינוי שלך..."
+                value={nickname}
+                onChange={(e) => {
+                  setNickname(e.target.value);
+                  if (invalidNickname && e.target.value.trim()) {
+                    setInvalidNickname(false);
+                  }
+                }}
+                maxLength={20}
+                className={`text-lg h-12 text-right ${invalidNickname ? 'border-2 border-red-500' : ''}`}
+                dir="rtl"
+              />
+              <Button
+                onClick={handleClearNickname}
+                variant="outline"
+                disabled={!nickname}
+                className="h-12 px-4 whitespace-nowrap"
+              >
+                מחק נתונים
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -109,7 +133,7 @@ export default function RoomSelection({ onJoinRoom }) {
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{getRoomNamesByIndex(index)}</span>
+                  <span>{room.room_name}</span>
                   <div className="flex items-center gap-2 text-base font-normal text-gray-600">
                     <Users size={20} />
                     <span>{room.player_count}</span>
@@ -122,7 +146,7 @@ export default function RoomSelection({ onJoinRoom }) {
               <CardContent>
                 <Button
                   data-testid={`join-room-${room.room_id}-btn`}
-                  onClick={() => handleJoin(room.room_id)}
+                  onClick={() => handleJoin(room.room_id, room.room_name)}
                   disabled={loading || room.game_status !== "waiting"}
                   className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
                 >

@@ -45,6 +45,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Room names configuration
+ROOM_NAMES = {
+    1: "חדר הסודות",
+    2: "חדר חדרי החדרים",
+    3: "חדר ילדים",
+    4: "חדר אחרון ודי",
+}
+
+def get_room_name(room_id: int) -> str:
+    """Get room name with fallback to default if not found"""
+    return ROOM_NAMES.get(room_id, f"חדר {room_id}")
+
 # Game State Management
 class Player(BaseModel):
     nickname: str
@@ -176,6 +188,7 @@ async def get_rooms():
         connected_players = [p.nickname for p in room.players.values() if p.connected]
         rooms_status.append({
             "room_id": room_id,
+            "room_name": get_room_name(room_id),
             "player_count": len(connected_players),
             "game_status": room.game_status,
             "players": connected_players
@@ -213,7 +226,7 @@ async def handle_message(room_id: int, nickname: str, data: dict):
     
     if action == "start_game":
         connected_players = [p for p in room.players.values() if p.connected]
-        if room.players[nickname].is_admin and len(connected_players) >= 2:
+        if room.players[nickname].is_admin and len(connected_players) >= 1:
             room.game_status = "choosing"
             room.current_round += 1
             # Reset all numbers

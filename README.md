@@ -3,6 +3,7 @@
 SETUP:
 Backend:
 pip install -r requirements.txt
+pip install -r requirements.local.txt
 
 Frontend:
 yarn install
@@ -10,7 +11,7 @@ yarn install
 LOCAL RUN:
 1. duplicate .env.copy
 2. run in terminal:
-if needed (. .venv/bin/activate)
+if needed (. .venv/bin/activate) (.\venv\Scripts\activate)
 Terminal 1 — Backend:
 uvicorn server:app --reload --host 127.0.0.1 --port 8000
 

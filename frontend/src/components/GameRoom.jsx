@@ -19,7 +19,9 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   const [hideNumber, setHideNumber] = useState(false);
   const [hideNumberAfterChoosing, setHideNumberAfterChoosing] = useState(false);
   const [playersExpanded, setPlayersExpanded] = useState(true);
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const [multiplierInput, setMultiplierInput] = useState("0.8");
   const [previousRound, setPreviousRound] = useState(null);
   const [selectedHistoryRound, setSelectedHistoryRound] = useState(null);
@@ -78,6 +80,12 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
           onLeave();
         } else if (data.type === "room_state") {
           const currentPlayer = data.players.find(p => p.nickname === nickname);
+          
+          // Check if current player was removed (was in room state before, not now)
+          if (roomState && roomState.players.find(p => p.nickname === nickname) && !currentPlayer) {
+            toast.error(`${nickname} הוסר מהסיבוב`);
+          }
+          
           if (currentPlayer) {
             setHasChosen(currentPlayer.has_chosen);
           }
@@ -100,6 +108,13 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
           setPreviousGameStatus(data.game_status);
           setPreviousRound(data.current_round);
+          
+          // Ensure current player is always in the room state for consistent UI display
+          // This prevents situations where a player disappears from the UI
+          if (data.game_status === "results" && currentPlayer && !data.players.find(p => p.nickname === nickname)) {
+            data.players.push(currentPlayer);
+          }
+          
           setRoomState(data);
 
           // Sync multiplier input with room state
@@ -188,12 +203,11 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   };
 
   const handleNewRound = () => {
-    setHideNumber(false);
+    // Don't reset hideNumber - keep user's preferences
     sendMessage({ action: "new_round" });
   };
 
   const handleStopGame = () => {
-    setHideNumber(false);
     sendMessage({ action: "stop_game" });
   };
 
@@ -268,6 +282,8 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   const isAdmin = currentPlayer?.is_admin;
   const connectedPlayers = roomState.players.filter(p => p.connected);
   const allChosen = connectedPlayers.every(p => p.has_chosen);
+  const playersChosen = connectedPlayers.filter(p => p.has_chosen);
+  const anyPlayerChosen = playersChosen.length > 0;
   const latestRound = roomState.game_history[roomState.game_history.length - 1];
 
   return (
@@ -292,7 +308,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
             </h1>
             <p className="text-2xl text-gray-700 flex gap-8">
               <span>סיבוב {roomState.current_round}</span>
-              <span>שם הילד/ה: {nickname}</span>
+              <span>כינוי שלך: {nickname}</span>
             </p>
           </div>
           <Button
@@ -377,13 +393,13 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label className="block text-sm font-medium mb-3 text-right"
                           data-testid="multiplier-label">
-                          הגדר מכפיל למשחק (0.1 - 1.9)
+                          הגדר מכפיל למשחק (0.1 - 0.9)
                         </label>
                         <div className="flex gap-2">
                           <Input
                             type="number"
                             min="0.1"
-                            max="1.9"
+                            max="0.9"
                             step="0.1"
                             value={multiplierInput}
                             onChange={(e) => setMultiplierInput(e.target.value)}
@@ -489,7 +505,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       </>
                     )}
                     {hideNumberAfterChoosing && hasChosen && (
-                      <div className="text-center text-gray-500 mb-6 py-8">
+                      <div className="text-center text-gray-500 mb-6 py-4">
                         סליידר מוסתר עד סיום הבחירה
                       </div>
                     )}
@@ -542,29 +558,64 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                           <Button
                             data-testid="force-finish-btn"
                             onClick={handleForceFinish}
+                            disabled={!anyPlayerChosen}
                             variant="outline"
-                            className="w-full h-10 text-sm border-orange-300 hover:bg-orange-100"
+                            className="w-full h-10 text-sm border-orange-300 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             סיים סיבוב (שחקנים שלא בחרו לא ישתתפו)
                           </Button>
                           <div className="text-xs text-orange-700 space-y-2">
-                            {connectedPlayers.filter(p => !p.has_chosen).map(player => (
-                              <div
-                                key={player.nickname}
-                                className="flex items-center justify-between bg-white p-2 rounded"
-                              >
-                                <span>{player.nickname}</span>
-                                <Button
-                                  onClick={() => handleRemovePlayer(player.nickname)}
-                                  disabled={player.nickname === nickname}
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-6 text-xs px-2"
-                                >
-                                  הסר
-                                </Button>
-                              </div>
-                            ))}
+                            {/* Show players who didn't choose first, then all other connected players */}
+                            {(() => {
+                              const sortedPlayers = [
+                                ...connectedPlayers.filter(p => !p.has_chosen),
+                                ...connectedPlayers.filter(p => p.has_chosen)
+                              ];
+                              const displayedPlayers = showAllPlayers ? sortedPlayers : sortedPlayers.slice(0, 3);
+                              return (
+                                <>
+                                  {displayedPlayers.map(player => (
+                                    <div
+                                      key={player.nickname}
+                                      className={`flex items-center justify-between p-2 rounded ${!player.has_chosen ? 'bg-red-100 border border-red-200' : 'bg-white'}`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span>{player.nickname}</span>
+                                        {!player.has_chosen && (
+                                          <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded">
+                                            לא בחר
+                                          </span>
+                                        )}
+                                        {player.nickname === nickname && (
+                                          <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
+                                            אתה
+                                          </span>
+                                        )}
+                                      </div>
+                                      <Button
+                                        onClick={() => handleRemovePlayer(player.nickname)}
+                                        disabled={player.nickname === nickname}
+                                        size="sm"
+                                        variant="destructive"
+                                        className="h-6 text-xs px-2"
+                                      >
+                                        הסר
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  {sortedPlayers.length > 3 && !showAllPlayers && (
+                                    <Button
+                                      onClick={() => setShowAllPlayers(true)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full mt-2 text-xs"
+                                    >
+                                      הצג הכל ({sortedPlayers.length})
+                                    </Button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -616,33 +667,53 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                   onClick={() => setHistoryExpanded(!historyExpanded)}
                 >
                   <div className="flex items-center justify-between">
-                    <CardTitle>היסטוריית משחקים</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      היסטוריית משחקים ({roomState.game_history.length})
+                    </CardTitle>
                     {historyExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </div>
                 </CardHeader>
                 {historyExpanded && (
                   <CardContent>
                     <div className="space-y-2 mb-4">
-                      {roomState.game_history.slice().reverse().map((round, idx) => (
-                        <div
-                          key={roomState.game_history.length - idx}
-                          data-testid={`history-round-${round.round_number}`}
-                          onClick={() => setSelectedHistoryRound(round)}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 hover:shadow-md cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="font-medium">סיבוב {round.round_number}</span>
-                            <ArrowRight size={16} className="text-gray-400" />
-                            <span className="text-sm text-gray-600">
-                              יעד: {round.target_number}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Trophy size={16} className="text-yellow-500" />
-                            <span className="font-medium">{round.winner}</span>
-                          </div>
-                        </div>
-                      ))}
+                      {(() => {
+                        const reversedHistory = roomState.game_history.slice().reverse();
+                        const displayedHistory = showAllHistory ? reversedHistory : reversedHistory.slice(0, 3);
+                        return (
+                          <>
+                            {displayedHistory.map((round, idx) => (
+                              <div
+                                key={roomState.game_history.length - idx}
+                                data-testid={`history-round-${round.round_number}`}
+                                onClick={() => setSelectedHistoryRound(round)}
+                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 hover:shadow-md cursor-pointer transition-all"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="font-medium">סיבוב {round.round_number}</span>
+                                  <ArrowRight size={16} className="text-gray-400" />
+                                  <span className="text-sm text-gray-600">
+                                    יעד: {round.target_number}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Trophy size={16} className="text-yellow-500" />
+                                  <span className="font-medium">{round.winner}</span>
+                                </div>
+                              </div>
+                            ))}
+                            {reversedHistory.length > 3 && !showAllHistory && (
+                              <Button
+                                onClick={() => setShowAllHistory(true)}
+                                variant="outline"
+                                size="sm"
+                                className="w-full mt-2 text-xs"
+                              >
+                                הצג עוד משחקים ({reversedHistory.length - 3})
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     {isAdmin && (
                       <div className="space-y-2">

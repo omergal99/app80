@@ -12,22 +12,39 @@ function App() {
     // Check if user was in a room before refresh
     const lastRoomId = localStorage.getItem("lastRoomId");
     const savedNickname = localStorage.getItem("playerNickname");
+    const savedRoomDetails = localStorage.getItem("lastRoomDetails");
     
     if (lastRoomId && savedNickname) {
       setSelectedRoomId(parseInt(lastRoomId, 10));
       setNickname(savedNickname);
+      
+      // Try to restore room details if available
+      if (savedRoomDetails) {
+        try {
+          setRoomDetails(JSON.parse(savedRoomDetails));
+        } catch (e) {
+          console.error("Failed to parse saved room details:", e);
+        }
+      }
     }
   }, []);
 
   const handleJoinRoom = (roomId, playerNickname, roomName) => {
     setSelectedRoomId(roomId);
-    setRoomDetails({ room_id: roomId, room_name: roomName });
+    const details = { room_id: roomId, room_name: roomName };
+    setRoomDetails(details);
     setNickname(playerNickname);
+    
+    // Save to localStorage so we can restore after refresh
+    localStorage.setItem("lastRoomId", roomId.toString());
+    localStorage.setItem("playerNickname", playerNickname);
+    localStorage.setItem("lastRoomDetails", JSON.stringify(details));
   };
 
   const handleLeaveRoom = () => {
-    // Clear room ID but keep nickname in localStorage
+    // Clear all room-related data from localStorage
     localStorage.removeItem("lastRoomId");
+    localStorage.removeItem("lastRoomDetails");
     setSelectedRoomId(null);
     setRoomDetails(null);
   };

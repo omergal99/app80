@@ -80,6 +80,7 @@ class RoomState(BaseModel):
     current_round: int = 0
     game_history: List[GameRound] = []
     multiplier: float = 0.8  # Configurable multiplier (0.1 to 1.9)
+    force_finish_called: bool = False  # Track if force_finish was called this round
 
 # In-memory storage for 4 rooms
 rooms: Dict[int, RoomState] = {
@@ -235,6 +236,7 @@ async def handle_message(room_id: int, nickname: str, data: dict):
         if room.players[nickname].is_admin and len(connected_players) >= 1:
             room.game_status = "choosing"
             room.current_round += 1
+            room.force_finish_called = False  # Reset flag for new game
             # Reset all numbers
             for player in room.players.values():
                 player.number = None
@@ -242,6 +244,11 @@ async def handle_message(room_id: int, nickname: str, data: dict):
     
     elif action == "choose_number":
         if room.game_status == "choosing":
+            # If force_finish was already called, don't accept new choices
+            if room.force_finish_called:
+                await send_room_state(room_id)
+                return
+                
             number = data.get("number")
             if 0 <= number <= 100:
                 room.players[nickname].number = number
@@ -256,6 +263,7 @@ async def handle_message(room_id: int, nickname: str, data: dict):
         if room.players[nickname].is_admin:
             room.game_status = "choosing"
             room.current_round += 1
+            room.force_finish_called = False  # Reset flag for new round
             for player in room.players.values():
                 player.number = None
             await send_room_state(room_id)
@@ -306,6 +314,15 @@ async def handle_message(room_id: int, nickname: str, data: dict):
     
     elif action == "force_finish_round":
         if room.players[nickname].is_admin and room.game_status == "choosing":
+            # Mark that force finish was called so no more choices are accepted
+            room.force_finish_called = True
+            
+            # Disconnect players who didn't choose
+            for player in room.players.values():
+                if player.connected and player.number is None:
+                    player.connected = False
+            
+            # Calculate winner with only those who chose
             await calculate_winner(room_id)
 
 async def calculate_winner(room_id: int):
@@ -347,12 +364,30 @@ async def calculate_winner(room_id: int):
 async def send_room_state(room_id: int):
     room = rooms[room_id]
     
-    # Prepare state
+    # Ensure only ONE admin exists among connected players
+    connected_admins = [p for p in room.players.values() if p.is_admin and p.connected]
+    if len(connected_admins) > 1:
+        # Keep only the first admin, remove from others
+        for admin in connected_admins[1:]:
+            admin.is_admin = False
+    elif len(connected_admins) == 0 and any(p.connected for p in room.players.values()):
+        # No admin but there are connected players - promote first connected
+        for player in room.players.values():
+            if player.connected:
+                player.is_admin = True
+                break
+    
+    # Prepare state - only include players who are truly connected
+    # For results view, exclude players who didn't choose
     players_list = []
     for p in room.players.values():
+        # In results state, only show players who actually chose
+        if room.game_status == "results" and p.number is None:
+            continue
+        
         players_list.append({
             "nickname": p.nickname,
-            "is_admin": p.is_admin,
+            "is_admin": p.is_admin if p.connected else False,  # Never show admin status for disconnected
             "has_chosen": p.number is not None,
             "number": p.number if room.game_status == "results" else None,
             "connected": p.connected

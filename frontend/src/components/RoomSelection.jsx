@@ -55,12 +55,28 @@ export default function RoomSelection({ onJoinRoom }) {
     onJoinRoom(roomId, nickname.trim(), roomName);
   };
 
-  const handleClearNickname = () => {
+  const handleClearNickname = async () => {
+    // Get last room ID if exists and send disconnect message to server
+    const lastRoomId = localStorage.getItem("lastRoomId");
+    if (lastRoomId && nickname) {
+      try {
+        // Send a disconnect message to backend before clearing
+        const ws = new WebSocket(`${window.location.origin.replace('http', 'ws')}/api/ws/${lastRoomId}/${encodeURIComponent(nickname)}`);
+        ws.onopen = () => {
+          ws.close();
+        };
+      } catch (e) {
+        console.error("Error disconnecting from room:", e);
+      }
+    }
+    
     setNickname("");
     setInvalidNickname(false);
     localStorage.removeItem("playerNickname");
     localStorage.removeItem("lastRoomId");
+    localStorage.removeItem("lastRoomDetails");
     toast.success("נתוני השחקן נמחקו");
+    window.location.reload(); // Force refresh to clear everything
   };
 
   const getRoomStatus = (room) => {

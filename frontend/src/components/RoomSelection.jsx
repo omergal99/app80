@@ -86,7 +86,7 @@ export default function RoomSelection({ onJoinRoom }) {
             <Input
               data-testid="nickname-input"
               type="text"
-              placeholder="הכינוי שלך..."
+              placeholder="הכינוי..."
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               maxLength={20}

@@ -148,9 +148,10 @@ class ConnectionManager:
             del room_connections[room_id][nickname]
         if nickname in room.players:
             was_admin = room.players[nickname].is_admin
+            # Mark as disconnected
             room.players[nickname].connected = False
             
-            # If admin disconnected, promote next connected player (only if no other admin)
+            # If admin disconnected, promote next connected player
             if was_admin:
                 admin_exists = any(p.is_admin and p.connected for p in room.players.values())
                 if not admin_exists:
@@ -158,7 +159,12 @@ class ConnectionManager:
                         if player.connected:
                             player.is_admin = True
                             break
-            
+        
+        # Clean up players with NO connections (completely disconnected)
+        players_to_remove = [name for name, p in room.players.items() if not p.connected and name not in room_connections[room_id]]
+        for player_name in players_to_remove:
+            del room.players[player_name]
+        
         # Clean up room if no connected players
         if not any(p.connected for p in room.players.values()):
             rooms[room_id] = RoomState(room_id=room_id)
@@ -282,7 +288,7 @@ async def handle_message(room_id: int, nickname: str, data: dict):
     elif action == "set_multiplier":
         if room.players[nickname].is_admin and room.game_status == "waiting":
             multiplier = data.get("multiplier")
-            if multiplier is not None and 0.1 <= multiplier <= 1.9:
+            if multiplier is not None and 0.1 <= multiplier <= 0.9:
                 room.multiplier = multiplier
                 await send_room_state(room_id)
     

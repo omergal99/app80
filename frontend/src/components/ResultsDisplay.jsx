@@ -71,10 +71,11 @@ export default function ResultsDisplay({ round, nickname, multiplier }) {
                   </div>
                   <div className="text-left">
                     <div className="text-2xl font-bold" data-testid={`result-number-${playerName}`}>
-                      {number}
+                      {typeof number === 'number' && number % 1 !== 0 ? number.toFixed(2) : number}
                     </div>
                     <div className="text-base text-gray-500" data-testid={`result-distance-${playerName}`}>
                       מרחק: {distance.toFixed(2)}
+                      {distance <= 1 && <span className="text-yellow-600 font-bold ml-2">⭐ דיוק מצוין!</span>}
                     </div>
                   </div>
                 </div>

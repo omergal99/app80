@@ -27,6 +27,28 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
+  // Load hide settings from localStorage on mount
+  useEffect(() => {
+    const storedHideNumber = localStorage.getItem(`hideNumber_${nickname}`);
+    const storedHideAfter = localStorage.getItem(`hideNumberAfterChoosing_${nickname}`);
+
+    if (storedHideNumber !== null) {
+      setHideNumber(JSON.parse(storedHideNumber));
+    }
+    if (storedHideAfter !== null) {
+      setHideNumberAfterChoosing(JSON.parse(storedHideAfter));
+    }
+  }, [nickname]);
+
+  // Save hide settings to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem(`hideNumber_${nickname}`, JSON.stringify(hideNumber));
+  }, [hideNumber, nickname]);
+
+  useEffect(() => {
+    localStorage.setItem(`hideNumberAfterChoosing_${nickname}`, JSON.stringify(hideNumberAfterChoosing));
+  }, [hideNumberAfterChoosing, nickname]);
+
   useEffect(() => {
     connectWebSocket();
 
@@ -122,10 +144,11 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
     const value = e.target.value;
     setInputNumber(value);
 
-    // Update slider if valid number
-    const num = parseInt(value, 10);
+    // Allow decimal input with up to 2 decimal places
+    const num = parseFloat(value);
     if (!isNaN(num) && num >= 0 && num <= 100) {
-      setSelectedNumber([num]);
+      // Store the full decimal value for display, but keep slider as integer
+      setSelectedNumber([Math.round(num)]);
     }
   };
 
@@ -135,7 +158,12 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   };
 
   const handleChooseNumber = () => {
-    sendMessage({ action: "choose_number", number: selectedNumber[0] });
+    // Parse decimal if provided, otherwise use slider value
+    const numberToSend = inputNumber && !isNaN(parseFloat(inputNumber))
+      ? Math.min(100, Math.max(0, parseFloat(inputNumber)))
+      : selectedNumber[0];
+
+    sendMessage({ action: "choose_number", number: numberToSend });
     setHasChosen(true);
   };
 
@@ -157,11 +185,11 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
   const handleSetMultiplier = () => {
     const multiplier = parseFloat(multiplierInput);
-    if (!isNaN(multiplier) && multiplier >= 0.1 && multiplier <= 1.9) {
+    if (!isNaN(multiplier) && multiplier >= 0.1 && multiplier <= 0.9) {
       sendMessage({ action: "set_multiplier", multiplier });
       toast.success(`מכפיל עדכן ל-${multiplier}`);
     } else {
-      toast.error("מכפיל חייב להיות בין 0.1 ל-1.9");
+      toast.error("מכפיל חייב להיות בין 0.1 ל-0.9");
     }
   };
 
@@ -250,6 +278,9 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
           <Button
             data-testid="leave-room-btn"
             onClick={() => {
+              // Clear localStorage when leaving
+              localStorage.removeItem(`hideNumber_${nickname}`);
+              localStorage.removeItem(`hideNumberAfterChoosing_${nickname}`);
               if (wsRef.current) {
                 wsRef.current.close();
               }
@@ -285,8 +316,8 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       key={player.nickname}
                       data-testid={`player-${player.nickname}`}
                       className={`flex items-center justify-between p-3 rounded-lg transition-colors ${player.nickname === nickname
-                          ? 'bg-blue-100 border-2 border-blue-300'
-                          : 'bg-gray-50'
+                        ? 'bg-blue-100 border-2 border-blue-300'
+                        : 'bg-gray-50'
                         }`}
                     >
                       <div className="flex items-center gap-2">
@@ -325,7 +356,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                     <>
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label className="block text-sm font-medium mb-3 text-right"
-                        data-testid="multiplier-label">
+                          data-testid="multiplier-label">
                           הגדר מכפיל למשחק (0.1 - 1.9)
                         </label>
                         <div className="flex gap-2">
@@ -374,21 +405,20 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
 
             {roomState.game_status === "choosing" && (
               <Card className="bg-white/80 backdrop-blur-sm">
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <CardTitle>בחר את המספר שלך</CardTitle>
-                    <CardDescription>
-                      בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
-                    </CardDescription>
-                  </div>
-                  {/* Always Show Hide Controls */}
-                  <div className="flex gap-2 flex-shrink-0">
+                <CardHeader>
+                  <CardTitle>בחר את המספר שלך</CardTitle>
+                  <CardDescription>
+                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Hide Controls - Separate Row */}
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       onClick={() => setHideNumber(!hideNumber)}
                       variant={hideNumber ? "default" : "outline"}
-                      style={{width: '105px'}}
                       size="sm"
-                      className="gap-2 whitespace-nowrap"
+                      className="gap-2"
                       data-testid="toggle-hide-number-btn"
                     >
                       {hideNumber ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -398,24 +428,22 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       onClick={() => setHideNumberAfterChoosing(!hideNumberAfterChoosing)}
                       variant={hideNumberAfterChoosing ? "default" : "outline"}
                       size="sm"
-                      style={{width: '125px'}}
-                      className="whitespace-nowrap"
+                      className="gap-2"
                       data-testid="toggle-hide-after-choosing-btn"
                     >
                       {hideNumberAfterChoosing ? "✓ " : "○ "} הסתר לאחר בחירה
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
+
                   {/* Large Number Display with fixed width container */}
                   <div className="flex items-center justify-center">
                     <div className="w-48 text-center">
                       <div
-                        className="text-7xl font-black h-24 flex items-center justify-center"
+                        className="text-5xl font-black h-24 flex items-center justify-center"
                         style={{ fontFamily: "'Courier New', monospace" }}
                         data-testid="selected-number-display"
                       >
-                        {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : selectedNumber[0]}
+                        {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])}
                       </div>
                     </div>
                   </div>
@@ -441,18 +469,21 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                   {/* Input with inline label */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex gap-3 items-center">
-                      <label className="text-sm font-medium text-right whitespace-nowrap">
+                      <label className="text-sm font-medium text-right whitespace-nowrap"
+                      data-testid="number-input-label">
                         או הזן ישירות:
                       </label>
                       <Input
-                        type="number"
+                        data-testid="number-input"
+                        type="text"
+                        inputMode="decimal"
                         min="0"
                         max="100"
                         value={hideNumber || (hideNumberAfterChoosing && hasChosen) ? "" : inputNumber}
                         onChange={handleInputChange}
                         disabled={hasChosen}
                         className="text-lg text-center h-10 flex-1"
-                        placeholder="0-100"
+                        placeholder="0-100 (עד 2 ספרות אחרי הנקודה)"
                       />
                     </div>
                   </div>
@@ -465,7 +496,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       disabled={hasChosen}
                       className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
                     >
-                      {hasChosen ? `אישרת: ${hideNumberAfterChoosing ? "****" : selectedNumber[0]} - ממתין לשחקנים אחרים` : `אשר בחירה: ${selectedNumber[0]}`}
+                      {hasChosen ? `אישרת: ${hideNumberAfterChoosing ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])} - ממתין לשחקנים אחרים` : `אשר בחירה: ${inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0]}`}
                     </Button>
                     {!allChosen && (
                       <div className="text-center text-sm text-gray-600">
@@ -523,30 +554,6 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-2">המספר היעד</div>
-                    <div
-                      className="text-5xl font-bold text-blue-600"
-                      style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-                      data-testid="target-number"
-                    >
-                      {latestRound.target_number}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-4 space-y-2">
-                      <div>
-                        סכום: <span className="font-semibold text-gray-700">{latestRound.total_sum}</span>
-                      </div>
-                      <div>
-                        ממוצע: <span className="font-semibold text-gray-700">{latestRound.average}</span>
-                      </div>
-                      <div>
-                        ממוצע × {roomState.multiplier}: <span className="font-semibold text-gray-700">{latestRound.target_number}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
                   <ResultsDisplay round={latestRound} nickname={nickname} multiplier={roomState.multiplier} />
 
                   {isAdmin && (

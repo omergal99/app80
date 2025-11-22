@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Crown, Users, CheckCircle2, Circle, Trophy, ArrowRight, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import GameResultsModal from "./GameResultsModal";
+import ResultsDisplay from "./ResultsDisplay";
 import { WS_URL } from "@/services/backendService";
 
 export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
@@ -385,32 +386,37 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                     <Button
                       onClick={() => setHideNumber(!hideNumber)}
                       variant={hideNumber ? "default" : "outline"}
+                      style={{width: '105px'}}
                       size="sm"
                       className="gap-2 whitespace-nowrap"
                       data-testid="toggle-hide-number-btn"
                     >
                       {hideNumber ? <EyeOff size={16} /> : <Eye size={16} />}
-                      {hideNumber ? "חשיפה גדולה" : "ללא חשיפה"}
+                      {hideNumber ? "ללא חשיפה" : "חשיפה גדולה"}
                     </Button>
                     <Button
                       onClick={() => setHideNumberAfterChoosing(!hideNumberAfterChoosing)}
                       variant={hideNumberAfterChoosing ? "default" : "outline"}
                       size="sm"
+                      style={{width: '125px'}}
                       className="whitespace-nowrap"
                       data-testid="toggle-hide-after-choosing-btn"
                     >
-                      {hideNumberAfterChoosing ? "✓" : "○"} הסתר לאחר בחירה
+                      {hideNumberAfterChoosing ? "✓ " : "○ "} הסתר לאחר בחירה
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Large Number Display */}
-                  <div className="text-center">
-                    <div
-                      className="text-5xl font-black"
-                      data-testid="selected-number-display"
-                    >
-                      {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : selectedNumber[0]}
+                  {/* Large Number Display with fixed width container */}
+                  <div className="flex items-center justify-center">
+                    <div className="w-48 text-center">
+                      <div
+                        className="text-7xl font-black h-24 flex items-center justify-center"
+                        style={{ fontFamily: "'Courier New', monospace" }}
+                        data-testid="selected-number-display"
+                      >
+                        {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : selectedNumber[0]}
+                      </div>
                     </div>
                   </div>
 
@@ -534,63 +540,14 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                         ממוצע: <span className="font-semibold text-gray-700">{latestRound.average}</span>
                       </div>
                       <div>
-                        ממוצע × 0.8: <span className="font-semibold text-gray-700">{latestRound.target_number}</span>
+                        ממוצע × {roomState.multiplier}: <span className="font-semibold text-gray-700">{latestRound.target_number}</span>
                       </div>
                     </div>
                   </div>
 
                   <Separator />
 
-                  <div className="space-y-3">
-                    {Object.entries(latestRound.players_data)
-                      .sort(([, a], [, b]) =>
-                        Math.abs(a - latestRound.target_number) - Math.abs(b - latestRound.target_number)
-                      )
-                      .map(([playerName, number]) => {
-                        const isWinner = playerName === latestRound.winner;
-                        const isCurrentPlayer = playerName === nickname;
-                        const distance = Math.abs(number - latestRound.target_number);
-
-                        return (
-                          <div
-                            key={playerName}
-                            data-testid={`result-${playerName}`}
-                            className={`flex flex-col p-2 rounded-lg transition-all ${isWinner
-                                ? 'bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 shadow-lg'
-                                : isCurrentPlayer
-                                  ? 'bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300'
-                                  : 'bg-gray-50'
-                              }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                {isWinner && <Trophy size={20} className="text-yellow-600" />}
-                                <span className={`font-medium text-lg ${isWinner ? 'text-yellow-700' : isCurrentPlayer ? 'text-blue-700' : ''}`}>
-                                  {playerName}
-                                </span>
-                                {isCurrentPlayer && !isWinner && (
-                                  <Badge variant="secondary" className="bg-blue-200 text-blue-800">אתה</Badge>
-                                )}
-                                {isWinner && (
-                                  <Badge className="bg-yellow-500 text-white font-bold">🎉 מנצח!</Badge>
-                                )}
-                              </div>
-                              <div className="text-left">
-                                <div className="text-2xl font-bold">{number}</div>
-                                <div className="text-base text-gray-500">
-                                  מרחק: {distance.toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-                            {isWinner && isCurrentPlayer && (
-                              <div className="mt-2 text-center text-yellow-700 font-bold text-sm">
-                                🏆 אתה המנצח בסיבוב זה! 🏆
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
+                  <ResultsDisplay round={latestRound} nickname={nickname} multiplier={roomState.multiplier} />
 
                   {isAdmin && (
                     <div className="space-y-3">

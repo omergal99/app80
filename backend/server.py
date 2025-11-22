@@ -59,6 +59,7 @@ def get_room_name(room_id: int) -> str:
 
 # Game State Management
 class Player(BaseModel):
+    player_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nickname: str
     is_admin: bool = False
     number: Optional[Union[int, float]] = None
@@ -386,6 +387,7 @@ async def send_room_state(room_id: int):
             continue
         
         players_list.append({
+            "player_id": p.player_id,
             "nickname": p.nickname,
             "is_admin": p.is_admin if p.connected else False,  # Never show admin status for disconnected
             "has_chosen": p.number is not None,

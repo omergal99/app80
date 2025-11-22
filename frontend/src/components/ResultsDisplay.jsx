@@ -81,7 +81,7 @@ export default function ResultsDisplay({ round, nickname, multiplier }) {
                 </div>
                 {isWinner && isCurrentPlayer && (
                   <div className="mt-2 text-center text-yellow-700 font-bold text-sm">
-                    🏆 אתה המנצח בסיבוק זה! 🏆
+                    🏆 אתה המנצח בסיבוב זה! 🏆
                   </div>
                 )}
               </div>

@@ -13,6 +13,7 @@ import { WS_URL } from "@/services/backendService";
 
 export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
   const [roomState, setRoomState] = useState(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState(null);
   const [selectedNumber, setSelectedNumber] = useState([50]);
   const [inputNumber, setInputNumber] = useState("50");
   const [hasChosen, setHasChosen] = useState(false);
@@ -80,6 +81,11 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
           onLeave();
         } else if (data.type === "room_state") {
           const currentPlayer = data.players.find(p => p.nickname === nickname);
+          
+          // Capture current player's ID on first message
+          if (currentPlayer && !currentPlayerId) {
+            setCurrentPlayerId(currentPlayer.player_id);
+          }
           
           // Check if current player was removed (was in room state before, not now)
           if (roomState && roomState.players.find(p => p.nickname === nickname) && !currentPlayer) {
@@ -349,7 +355,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                 <CardContent className="space-y-3">
                   {connectedPlayers.map((player) => (
                     <div
-                      key={player.nickname}
+                      key={player.player_id}
                       data-testid={`player-${player.nickname}`}
                       className={`flex items-center justify-between p-3 rounded-lg transition-colors ${player.nickname === nickname
                         ? 'bg-blue-100 border-2 border-blue-300'
@@ -359,7 +365,7 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                       <div className="flex items-center gap-2">
                         {player.is_admin && <Crown size={16} className="text-yellow-500" />}
                         <span className={`font-medium ${player.nickname === nickname ? 'text-blue-700' : ''}`}>{player.nickname}</span>
-                        {player.nickname === nickname && (
+                        {player.is_admin && player.player_id === currentPlayerId && (
                           <Badge className="bg-blue-600 text-white text-xs">אתה</Badge>
                         )}
                       </div>
@@ -564,37 +570,34 @@ export default function GameRoom({ roomId, roomName, nickname, onLeave }) {
                           >
                             סיים סיבוב (שחקנים שלא בחרו לא ישתתפו)
                           </Button>
-                          <div className="text-xs text-orange-700 space-y-2">
+                          <div className="text-xs text-orange-700 space-y-2" data-testid="force-finish-warning">
                             {/* Show players who didn't choose first, then all other connected players */}
                             {(() => {
                               const sortedPlayers = [
                                 ...connectedPlayers.filter(p => !p.has_chosen),
                                 ...connectedPlayers.filter(p => p.has_chosen)
-                              ];
+                              ].filter(p => p.player_id !== currentPlayerId); // Exclude current admin
                               const displayedPlayers = showAllPlayers ? sortedPlayers : sortedPlayers.slice(0, 3);
                               return (
                                 <>
                                   {displayedPlayers.map(player => (
                                     <div
-                                      key={player.nickname}
+                                      key={player.player_id}
                                       className={`flex items-center justify-between p-2 rounded ${!player.has_chosen ? 'bg-red-100 border border-red-200' : 'bg-white'}`}
                                     >
                                       <div className="flex items-center gap-2">
                                         <span>{player.nickname}</span>
-                                        {!player.has_chosen && (
-                                          <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded">
-                                            לא בחר
+                                        {!player.has_chosen ? (
+                                          <span className="text-xs bg-orange-200 text-black px-2 py-0.5 rounded">
+                                            עדיין לא בחר
                                           </span>
-                                        )}
-                                        {player.nickname === nickname && (
-                                          <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
-                                            אתה
-                                          </span>
-                                        )}
+                                        ): <span className="text-xs bg-green-300 text-black px-2 py-0.5 rounded">
+                                            בחר
+                                          </span>}
                                       </div>
                                       <Button
                                         onClick={() => handleRemovePlayer(player.nickname)}
-                                        disabled={player.nickname === nickname}
+                                        disabled={player.player_id === currentPlayerId}
                                         size="sm"
                                         variant="destructive"
                                         className="h-6 text-xs px-2"

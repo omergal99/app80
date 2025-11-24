@@ -303,7 +303,7 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
   const latestRound = roomState.game_history[roomState.game_history.length - 1];
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
         {/* History Round Modal */}
         <GameResultsModal

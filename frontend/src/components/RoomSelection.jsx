@@ -90,26 +90,26 @@ export default function RoomSelection({ onJoinRoom }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-screen flex justify-center p-4">
       <div className="w-full max-w-5xl">
-        <div className="text-center mb-12">
+        <div className="text-center mb-6">
           <h1
-            className="text-5xl lg:text-6xl font-bold mb-4"
+            className="text-4xl lg:text-6xl font-bold mb-4"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           >
             משחק התנחש 80%
           </h1>
-          <p className="text-3xl text-gray-600 max-w-4xl mx-auto">
+          <p className="text-2xl text-gray-600 max-w-4xl mx-auto">
             בחר מספר בין 0 ל-100.
           </p>
-          <p className="text-3xl text-gray-600 max-w-4xl mx-auto">
+          <p className="text-2xl text-gray-600 max-w-4xl mx-auto">
             המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול 0.8
           </p>
         </div>
 
-        <Card className="mb-8 bg-white/80 backdrop-blur-sm border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-xl">בחר כינוי להצגה במשחק</CardTitle>
+        <Card className="mb-6 bg-white/80 backdrop-blur-sm border-gray-200">
+          <CardHeader className="p-2 pr-4">
+            <CardTitle className="text-lg">בחר כינוי להצגה במשחק</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">

@@ -62,6 +62,7 @@ class Player(BaseModel):
     player_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nickname: str
     is_admin: bool = False
+    is_viewer: bool = False  # True if player is viewing only, not participating
     number: Optional[Union[int, float]] = None
     connected: bool = True
 
@@ -103,12 +104,12 @@ class ConnectionManager:
     def __init__(self):
         pass
     
-    async def connect(self, websocket: WebSocket, room_id: int, nickname: str):
+    async def connect(self, websocket: WebSocket, room_id: int, nickname: str, is_viewer: bool = False):
         await websocket.accept()
         room = rooms[room_id]
         
-        # Check if game already started
-        if room.game_status != "waiting" and nickname not in room.players:
+        # Viewers can join even if game is in progress
+        if room.game_status != "waiting" and not is_viewer and nickname not in room.players:
             await websocket.send_json({
                 "type": "error",
                 "message": "המשחק כבר התחיל, לא ניתן להצטרף עכשיו"
@@ -120,11 +121,11 @@ class ConnectionManager:
         is_new_player = nickname not in room.players
         
         if is_new_player:
-            # New player - check if room needs an admin
-            connected_players = [p for p in room.players.values() if p.connected]
+            # New player/viewer - check if room needs an admin (only for non-viewers)
+            connected_players = [p for p in room.players.values() if p.connected and not p.is_viewer]
             has_admin = any(p.is_admin for p in connected_players)
-            is_admin = len(connected_players) == 0 or not has_admin
-            room.players[nickname] = Player(nickname=nickname, is_admin=is_admin)
+            is_admin = (len(connected_players) == 0 and not is_viewer) or (not has_admin and not is_viewer)
+            room.players[nickname] = Player(nickname=nickname, is_admin=is_admin, is_viewer=is_viewer)
         else:
             # Reconnecting player - keep their previous admin status
             room.players[nickname].connected = True
@@ -204,12 +205,12 @@ async def get_rooms():
     return rooms_status
 
 @app.websocket("/api/ws/{room_id}/{nickname}")
-async def websocket_endpoint(websocket: WebSocket, room_id: int, nickname: str):
+async def websocket_endpoint(websocket: WebSocket, room_id: int, nickname: str, viewer: bool = False):
     if room_id not in rooms:
         await websocket.close()
         return
     
-    connected = await manager.connect(websocket, room_id, nickname)
+    connected = await manager.connect(websocket, room_id, nickname, is_viewer=viewer)
     if not connected:
         return
     
@@ -254,8 +255,9 @@ async def handle_message(room_id: int, nickname: str, data: dict):
             if 0 <= number <= 100:
                 room.players[nickname].number = number
                 
-                # Check if all players chose
-                if all(p.number is not None for p in room.players.values() if p.connected):
+                # Check if all PLAYING players (not viewers) chose
+                playing_players = [p for p in room.players.values() if p.connected and not p.is_viewer]
+                if playing_players and all(p.number is not None for p in playing_players):
                     await calculate_winner(room_id)
                 else:
                     await send_room_state(room_id)
@@ -306,9 +308,9 @@ async def handle_message(room_id: int, nickname: str, data: dict):
             target_nickname = data.get("target_nickname")
             if target_nickname in room.players and target_nickname != nickname:
                 room.players[target_nickname].connected = False
-                # Check if remaining players all chose
-                remaining_players = [p for p in room.players.values() if p.connected]
-                if remaining_players and all(p.number is not None for p in remaining_players):
+                # Check if remaining PLAYING players (not viewers) all chose
+                playing_players = [p for p in room.players.values() if p.connected and not p.is_viewer]
+                if playing_players and all(p.number is not None for p in playing_players):
                     await calculate_winner(room_id)
                 else:
                     await send_room_state(room_id)
@@ -329,25 +331,25 @@ async def handle_message(room_id: int, nickname: str, data: dict):
 async def calculate_winner(room_id: int):
     room = rooms[room_id]
     
-    # Calculate average and target using room's multiplier
-    numbers = [p.number for p in room.players.values() if p.connected and p.number is not None]
+    # Calculate average and target using room's multiplier - ONLY for playing players (not viewers)
+    numbers = [p.number for p in room.players.values() if p.connected and not p.is_viewer and p.number is not None]
     total_sum = sum(numbers)
     average = total_sum / len(numbers) if numbers else 0
     target = average * room.multiplier
     
-    # Find winner (closest to target)
+    # Find winner (closest to target) - ONLY among playing players
     winner = None
     min_distance = float('inf')
     
     for player in room.players.values():
-        if player.connected and player.number is not None:
+        if player.connected and not player.is_viewer and player.number is not None:
             distance = abs(float(player.number) - target)
             if distance < min_distance:
                 min_distance = distance
                 winner = player.nickname
     
-    # Save to history with proper typing
-    players_data = {p.nickname: p.number for p in room.players.values() if p.connected}
+    # Save to history with proper typing - ONLY playing players
+    players_data = {p.nickname: p.number for p in room.players.values() if p.connected and not p.is_viewer}
     game_round = GameRound(
         round_number=room.current_round,
         players_data=players_data,
@@ -381,9 +383,15 @@ async def send_room_state(room_id: int):
     # Prepare state - only include players who are truly connected
     # For results view, exclude players who didn't choose
     players_list = []
+    viewers_count = 0
     for p in room.players.values():
-        # In results state, only show players who actually chose
+        # In results state, only show players who actually chose (not viewers)
         if room.game_status == "results" and p.number is None:
+            continue
+        
+        if p.is_viewer:
+            if p.connected:
+                viewers_count += 1
             continue
         
         players_list.append({
@@ -399,6 +407,7 @@ async def send_room_state(room_id: int):
         "type": "room_state",
         "room_id": room_id,
         "players": players_list,
+        "viewers_count": viewers_count,
         "game_status": room.game_status,
         "current_round": room.current_round,
         "multiplier": room.multiplier,

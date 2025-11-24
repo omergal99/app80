@@ -37,8 +37,14 @@ function App() {
     return null;
   });
 
-  const handleJoinRoom = (roomId, playerNickname, roomName) => {
+  const [isViewer, setIsViewer] = useState(() => {
+    const savedIsViewer = localStorage.getItem("lastRoomIsViewer");
+    return savedIsViewer === "true";
+  });
+
+  const handleJoinRoom = (roomId, playerNickname, roomName, isViewerMode = false) => {
     setSelectedRoomId(roomId);
+    setIsViewer(isViewerMode);
     const details = { room_id: roomId, room_name: roomName };
     setRoomDetails(details);
     
@@ -48,6 +54,7 @@ function App() {
     
     // Save to localStorage so we can restore after refresh
     localStorage.setItem("lastRoomId", roomId.toString());
+    localStorage.setItem("lastRoomIsViewer", String(isViewerMode));
     localStorage.setItem("playerData", JSON.stringify(player));
     localStorage.setItem("lastRoomDetails", JSON.stringify(details));
   };
@@ -56,11 +63,13 @@ function App() {
     // Clear all room-related data from localStorage
     localStorage.removeItem("lastRoomId");
     localStorage.removeItem("lastRoomDetails");
+    localStorage.removeItem("lastRoomIsViewer");
     localStorage.removeItem("playerData");
     localStorage.removeItem("playerId");
     setSelectedRoomId(null);
     setRoomDetails(null);
     setPlayerData(null);
+    setIsViewer(false);
   };
 
   const updatePlayerData = (updatedPlayer) => {
@@ -77,6 +86,7 @@ function App() {
           roomId={selectedRoomId}
           roomName={roomDetails?.room_name}
           playerData={playerData}
+          isViewer={isViewer}
           onUpdatePlayerData={updatePlayerData}
           onLeave={handleLeaveRoom}
         />

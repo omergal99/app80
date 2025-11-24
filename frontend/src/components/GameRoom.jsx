@@ -10,7 +10,7 @@ import GameResultsModal from "./GameResultsModal";
 import ResultsDisplay from "./ResultsDisplay";
 import { WS_URL } from "@/services/backendService";
 
-export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerData, onLeave }) {
+export default function GameRoom({ roomId, roomName, playerData, isViewer = false, onUpdatePlayerData, onLeave }) {
   // Destructure player info from playerData
   const nickname = playerData?.nickname;
   const initialPlayerId = playerData?.playerId;
@@ -70,7 +70,8 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
 
   const connectWebSocket = () => {
     try {
-      const ws = new WebSocket(`${WS_URL}/api/ws/${roomId}/${encodeURIComponent(nickname)}`);
+      const viewerParam = isViewer ? "?viewer=true" : "";
+      const ws = new WebSocket(`${WS_URL}/api/ws/${roomId}/${encodeURIComponent(nickname)}${viewerParam}`);
 
       ws.onopen = () => {
         console.log("WebSocket connected");
@@ -334,14 +335,16 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
                 onLeave();
               }}
               variant="outline"
-              className="h-11 px-6"
+              className="h-11 px-3"
             >
               עזוב חדר
             </Button>
           </div>
           <p className="text-xl text-gray-700 flex gap-10">
             <span>סיבוב {roomState.current_round}</span>
-            <span>כינוי: {nickname}</span>
+            <span>
+              כינוי{isViewer ? " 📺" : ""}: {nickname}
+            </span>
           </p>
         </div>
 
@@ -356,7 +359,7 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Users size={20} />
-                    שחקנים ({connectedPlayers.length})
+                    שחקנים ({connectedPlayers.length}){roomState?.viewers_count > 0 && ` צופים (${roomState.viewers_count})`}
                   </CardTitle>
                   {playersExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </div>
@@ -458,182 +461,202 @@ export default function GameRoom({ roomId, roomName, playerData, onUpdatePlayerD
             {roomState.game_status === "choosing" && (
               <Card className="bg-white/80 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle>בחר את המספר שלך - סיבוב ){roomState.current_round})</CardTitle>
+                  <CardTitle>
+                    {isViewer ? "📺 מצב צפייה - סיבוב " : "בחר את המספר שלך - סיבוב "}{roomState.current_round}
+                  </CardTitle>
                   <CardDescription>
-                    בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול {roomState.multiplier}
+                    {isViewer ? (
+                      <div className="text-right">
+                        <div>אתה בעצם צופה במשחק זה</div>
+                        <div className="text-sm mt-1">{connectedPlayers.filter(p => p.has_chosen).length} מתוך {connectedPlayers.length} שחקנים בחרו</div>
+                      </div>
+                    ) : (
+                      `בחר מספר בין 0 ל-100. המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול ${roomState.multiplier}`
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Hide Controls - Separate Row */}
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      onClick={() => setHideNumber(!hideNumber)}
-                      variant={hideNumber ? "default" : "outline"}
-                      size="sm"
-                      className="gap-2"
-                      data-testid="toggle-hide-number-btn"
-                    >
-                      {hideNumber ? <EyeOff size={16} /> : <Eye size={16} />}
-                      {hideNumber ? "ללא חשיפה" : "חשיפה גדולה"}
-                    </Button>
-                    <Button
-                      onClick={() => setHideNumberAfterChoosing(!hideNumberAfterChoosing)}
-                      variant={hideNumberAfterChoosing ? "default" : "outline"}
-                      size="sm"
-                      className="gap-2"
-                      data-testid="toggle-hide-after-choosing-btn"
-                    >
-                      {hideNumberAfterChoosing ? "✓ " : "○ "} הסתר לאחר בחירה
-                    </Button>
-                  </div>
-
-                  {/* Large Number Display with fixed width container */}
-                  <div className="flex items-center justify-center">
-                    <div className="w-48 text-center">
-                      <div
-                        className="text-5xl font-black h-24 flex items-center justify-center"
-                        style={{ fontFamily: "'Courier New', monospace" }}
-                        data-testid="selected-number-display"
-                      >
-                        {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])}
+                  {isViewer ? (
+                    <div className="text-center py-8 text-gray-600">
+                      <div className="text-lg mb-3">📺 צופה בחיים</div>
+                      <div className="mb-4">מחכה לתוצאות של הסיבוב...</div>
+                      <div className="text-sm text-gray-500">
+                        {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו את המספר שלהם
                       </div>
                     </div>
-                  </div>
-
-                  {/* Slider and Input */}
-                  <div className="text-center">
-                    {!(hideNumberAfterChoosing && hasChosen) && (
-                      <>
-                        <Slider
-                          data-testid="number-slider"
-                          value={selectedNumber}
-                          onValueChange={handleSliderChange}
-                          max={100}
-                          step={1}
-                          disabled={hasChosen}
-                          className="mb-4"
-                        />
-                        <div className="flex justify-between text-sm text-gray-500 mb-6">
-                          <span>100</span>
-                          <span>50</span>
-                          <span>0</span>
-                        </div>
-                      </>
-                    )}
-                    {hideNumberAfterChoosing && hasChosen && (
-                      <div className="text-center text-gray-500 mb-6 py-4">
-                        סליידר מוסתר עד סיום הבחירה
+                  ) : (
+                    <>
+                      {/* Hide Controls */}
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          onClick={() => setHideNumber(!hideNumber)}
+                          variant={hideNumber ? "default" : "outline"}
+                          size="sm"
+                          className="gap-2"
+                          data-testid="toggle-hide-number-btn"
+                        >
+                          {hideNumber ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {hideNumber ? "ללא חשיפה" : "חשיפה גדולה"}
+                        </Button>
+                        <Button
+                          onClick={() => setHideNumberAfterChoosing(!hideNumberAfterChoosing)}
+                          variant={hideNumberAfterChoosing ? "default" : "outline"}
+                          size="sm"
+                          className="gap-2"
+                          data-testid="toggle-hide-after-choosing-btn"
+                        >
+                          {hideNumberAfterChoosing ? "✓ " : "○ "} הסתר לאחר בחירה
+                        </Button>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Input with inline label */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex gap-3 items-center">
-                      <label className="text-sm font-medium text-right whitespace-nowrap"
-                        data-testid="number-input-label">
-                        או הזן ישירות:
-                      </label>
-                      <Input
-                        data-testid="number-input"
-                        type="text"
-                        inputMode="decimal"
-                        min="0"
-                        max="100"
-                        value={hideNumberAfterChoosing && hasChosen ? "" : inputNumber}
-                        onChange={handleInputChange}
-                        disabled={hasChosen}
-                        className="text-lg text-center h-10 flex-1"
-                        placeholder="0-100 (עד 2 ספרות אחרי הנקודה)"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Submit Button and Player Count on Same Line */}
-                  <div className="space-y-2">
-                    <Button
-                      data-testid="submit-number-btn"
-                      onClick={handleChooseNumber}
-                      disabled={hasChosen}
-                      className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
-                    >
-                      {hasChosen ? `אישרת: ${hideNumberAfterChoosing ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])} - ממתין לשחקנים אחרים` : `אשר בחירה: ${inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0]}`}
-                    </Button>
-                    {!allChosen && (
-                      <div className="text-center text-sm text-gray-600">
-                        {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו
-                      </div>
-                    )}
-                  </div>
-
-                  {!allChosen && (
-                    <div>
-                      {isAdmin && (
-                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
-                          <div className="text-sm font-medium text-orange-900">אפשרויות מנהל</div>
-                          <Button
-                            data-testid="force-finish-btn"
-                            onClick={handleForceFinish}
-                            disabled={!anyPlayerChosen}
-                            variant="outline"
-                            className="w-full h-10 text-sm border-orange-300 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      {/* Large Number Display with fixed width container */}
+                      <div className="flex items-center justify-center">
+                        <div className="w-48 text-center">
+                          <div
+                            className="text-5xl font-black h-24 flex items-center justify-center"
+                            style={{ fontFamily: "'Courier New', monospace" }}
+                            data-testid="selected-number-display"
                           >
-                            סיים סיבוב (שחקנים שלא בחרו לא ישתתפו)
-                          </Button>
-                          <div className="text-xs text-orange-700 space-y-2" data-testid="force-finish-warning">
-                            {/* Show players who didn't choose first, then all other connected players */}
-                            {(() => {
-                              const sortedPlayers = [
-                                ...connectedPlayers.filter(p => !p.has_chosen),
-                                ...connectedPlayers.filter(p => p.has_chosen)
-                              ].filter(p => p.player_id !== currentPlayerId); // Exclude current admin
-                              const displayedPlayers = showAllPlayers ? sortedPlayers : sortedPlayers.slice(0, 3);
-                              return (
-                                <>
-                                  {displayedPlayers.map(player => (
-                                    <div
-                                      key={player.player_id}
-                                      className={`flex items-center justify-between p-2 rounded ${!player.has_chosen ? 'bg-red-100 border border-red-200' : 'bg-white'}`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <span>{player.nickname}</span>
-                                        {!player.has_chosen ? (
-                                          <span className="text-xs bg-orange-200 text-black px-2 py-0.5 rounded">
-                                            עדיין לא בחר
-                                          </span>
-                                        ) : <span className="text-xs bg-green-300 text-black px-2 py-0.5 rounded">
-                                          בחר
-                                        </span>}
-                                      </div>
-                                      <Button
-                                        onClick={() => handleRemovePlayer(player.nickname)}
-                                        disabled={player.player_id === currentPlayerId}
-                                        size="sm"
-                                        variant="destructive"
-                                        className="h-6 text-xs px-2"
-                                      >
-                                        הסר
-                                      </Button>
-                                    </div>
-                                  ))}
-                                  {sortedPlayers.length > 3 && !showAllPlayers && (
-                                    <Button
-                                      onClick={() => setShowAllPlayers(true)}
-                                      variant="outline"
-                                      size="sm"
-                                      className="w-full mt-2 text-xs"
-                                    >
-                                      הצג הכל ({sortedPlayers.length})
-                                    </Button>
-                                  )}
-                                </>
-                              );
-                            })()}
+                            {hideNumber || (hideNumberAfterChoosing && hasChosen) ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Slider and Input */}
+                      <div className="text-center">
+                        {!(hideNumberAfterChoosing && hasChosen) && (
+                          <>
+                            <Slider
+                              data-testid="number-slider"
+                              value={selectedNumber}
+                              onValueChange={handleSliderChange}
+                              max={100}
+                              step={1}
+                              disabled={hasChosen}
+                              className="mb-4"
+                            />
+                            <div className="flex justify-between text-sm text-gray-500 mb-6">
+                              <span>100</span>
+                              <span>50</span>
+                              <span>0</span>
+                            </div>
+                          </>
+                        )}
+                        {hideNumberAfterChoosing && hasChosen && (
+                          <div className="text-center text-gray-500 mb-6 py-4">
+                            סליידר מוסתר עד סיום הבחירה
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input with inline label */}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex gap-3 items-center">
+                          <label className="text-sm font-medium text-right whitespace-nowrap"
+                            data-testid="number-input-label">
+                            או הזן ישירות:
+                          </label>
+                          <Input
+                            data-testid="number-input"
+                            type="text"
+                            inputMode="decimal"
+                            min="0"
+                            max="100"
+                            value={hideNumberAfterChoosing && hasChosen ? "" : inputNumber}
+                            onChange={handleInputChange}
+                            disabled={hasChosen}
+                            className="text-lg text-center h-10 flex-1"
+                            placeholder="0-100 (עד 2 ספרות אחרי הנקודה)"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Submit Button and Player Count on Same Line */}
+                      <div className="space-y-2">
+                        <Button
+                          data-testid="submit-number-btn"
+                          onClick={handleChooseNumber}
+                          disabled={hasChosen}
+                          className="w-full h-14 text-lg font-medium bg-blue-600 hover:bg-blue-700"
+                        >
+                          {hasChosen ? `אישרת: ${hideNumberAfterChoosing ? "****" : (inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0])} - ממתין לשחקנים אחרים` : `אשר בחירה: ${inputNumber && !isNaN(parseFloat(inputNumber)) ? inputNumber : selectedNumber[0]}`}
+                        </Button>
+                        {!allChosen && (
+                          <div className="text-center text-sm text-gray-600">
+                            {connectedPlayers.filter(p => p.has_chosen).length} / {connectedPlayers.length} שחקנים בחרו
+                          </div>
+                        )}
+                      </div>
+
+                      {!allChosen && (
+                        <div>
+                          {isAdmin && (
+                            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
+                              <div className="text-sm font-medium text-orange-900">אפשרויות מנהל</div>
+                              <Button
+                                data-testid="force-finish-btn"
+                                onClick={handleForceFinish}
+                                disabled={!anyPlayerChosen}
+                                variant="outline"
+                                className="w-full h-10 text-sm border-orange-300 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                סיים סיבוב (שחקנים שלא בחרו לא ישתתפו)
+                              </Button>
+                              <div className="text-xs text-orange-700 space-y-2" data-testid="force-finish-warning">
+                                {/* Show players who didn't choose first, then all other connected players */}
+                                {(() => {
+                                  const sortedPlayers = [
+                                    ...connectedPlayers.filter(p => !p.has_chosen),
+                                    ...connectedPlayers.filter(p => p.has_chosen)
+                                  ].filter(p => p.player_id !== currentPlayerId); // Exclude current admin
+                                  const displayedPlayers = showAllPlayers ? sortedPlayers : sortedPlayers.slice(0, 3);
+                                  return (
+                                    <>
+                                      {displayedPlayers.map(player => (
+                                        <div
+                                          key={player.player_id}
+                                          className={`flex items-center justify-between p-2 rounded ${!player.has_chosen ? 'bg-red-100 border border-red-200' : 'bg-white'}`}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span>{player.nickname}</span>
+                                            {!player.has_chosen ? (
+                                              <span className="text-xs bg-orange-200 text-black px-2 py-0.5 rounded">
+                                                עדיין לא בחר
+                                              </span>
+                                            ) : <span className="text-xs bg-green-300 text-black px-2 py-0.5 rounded">
+                                              בחר
+                                            </span>}
+                                          </div>
+                                          <Button
+                                            onClick={() => handleRemovePlayer(player.nickname)}
+                                            disabled={player.player_id === currentPlayerId}
+                                            size="sm"
+                                            variant="destructive"
+                                            className="h-6 text-xs px-2"
+                                          >
+                                            הסר
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      {sortedPlayers.length > 3 && !showAllPlayers && (
+                                        <Button
+                                          onClick={() => setShowAllPlayers(true)}
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full mt-2 text-xs"
+                                        >
+                                          הצג הכל ({sortedPlayers.length})
+                                        </Button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
+                    </>)}
                 </CardContent>
               </Card>
             )}

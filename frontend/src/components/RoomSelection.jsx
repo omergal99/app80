@@ -34,7 +34,7 @@ export default function RoomSelection({ onJoinRoom }) {
     }
   };
 
-  const handleJoin = (roomId, roomName) => {
+  const handleJoin = (roomId, roomName, isViewer = false) => {
     if (!nickname.trim()) {
       setInvalidNickname(true);
       toast.error("אנא הזן כינוי");
@@ -50,9 +50,10 @@ export default function RoomSelection({ onJoinRoom }) {
     // Save nickname and room to localStorage for persistence
     localStorage.setItem("playerNickname", nickname.trim());
     localStorage.setItem("lastRoomId", String(roomId));
+    localStorage.setItem("lastRoomIsViewer", String(isViewer));
 
     setLoading(true);
-    onJoinRoom(roomId, nickname.trim(), roomName);
+    onJoinRoom(roomId, nickname.trim(), roomName, isViewer);
   };
 
   const handleClearNickname = async () => {
@@ -161,14 +162,26 @@ export default function RoomSelection({ onJoinRoom }) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button
-                  data-testid={`join-room-${room.room_id}-btn`}
-                  onClick={() => handleJoin(room.room_id, room.room_name)}
-                  disabled={loading || room.game_status !== "waiting"}
-                  className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
-                >
-                  {room.game_status !== "waiting" ? "משחק פעיל" : "הצטרף לחדר"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    data-testid={`join-room-${room.room_id}-btn`}
+                    onClick={() => handleJoin(room.room_id, room.room_name, false)}
+                    disabled={loading || room.game_status !== "waiting"}
+                    className="flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
+                  >
+                    {room.game_status !== "waiting" ? "משחק פעיל" : "הצטרף לחדר"}
+                  </Button>
+                  <Button
+                    data-testid={`view-room-${room.room_id}-btn`}
+                    onClick={() => handleJoin(room.room_id, room.room_name, true)}
+                    disabled={loading}
+                    variant="outline"
+                    className="px-3 h-12 text-sm font-medium"
+                    title="צפה במשחק ללא השתתפות"
+                  >
+                    👁️ צפה
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

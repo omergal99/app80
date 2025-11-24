@@ -17,7 +17,7 @@ export default function PlayersList({
         onClick={() => setPlayersExpanded(!playersExpanded)}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2" data-testid="players-list-title">
             <Users size={20} />
             שחקנים ({connectedPlayers.length})
           </CardTitle>

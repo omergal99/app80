@@ -62,13 +62,18 @@ export default function GameRoom({ roomId, roomName, playerData, isViewer = fals
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      if (wsRef.current) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
     };
-  }, [roomId, nickname]);
+  }, [roomId, nickname, isViewer]);
 
   const connectWebSocket = () => {
+    // Close existing connection if any to prevent duplicates
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.close();
+    }
+
     try {
       const viewerParam = isViewer ? "?viewer=true" : "";
       const ws = new WebSocket(`${WS_URL}/api/ws/${roomId}/${encodeURIComponent(nickname)}${viewerParam}`);
@@ -143,6 +148,7 @@ export default function GameRoom({ roomId, roomName, playerData, isViewer = fals
 
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
+        toast.error("שגיאה בחיבור לשרת - מנסה להתחבר מחדש");
       };
 
       ws.onclose = () => {
@@ -235,6 +241,10 @@ export default function GameRoom({ roomId, roomName, playerData, isViewer = fals
   };
 
   const handleSetMultiplier = () => {
+    if (!multiplierInput || multiplierInput.trim() === "") {
+      toast.error("אנא הזן ערך לכפיל");
+      return;
+    }
     const multiplier = parseFloat(multiplierInput);
     if (!isNaN(multiplier) && multiplier >= 0.1 && multiplier <= 0.9) {
       sendMessage({ action: "set_multiplier", multiplier });
@@ -290,7 +300,27 @@ export default function GameRoom({ roomId, roomName, playerData, isViewer = fals
   if (!roomState) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl text-gray-600">מתחבר...</div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <div className="text-xl text-gray-600">מתחבר...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Defensive check for room state integrity
+  if (!roomState.players || !roomState.game_history) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl text-red-600">שגיאה בטעינת מידע החדר</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            רענן את הדף
+          </button>
+        </div>
       </div>
     );
   }

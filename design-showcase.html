@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק התנחש 80% - Design Showcase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Space Grotesk', sans-serif; }
+        .space-grotesk { font-family: 'Space Grotesk', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%); }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        .card-hover { transition: all 300ms ease-in-out; }
+        .card-hover:hover { box-shadow: 0 10px 25px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .btn-hover { transition: all 150ms ease-out; }
+        .btn-hover:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .number-display { font-family: 'Courier New', monospace; font-size: 48px; font-weight: 900; letter-spacing: 2px; }
+        .section-nav { position: sticky; top: 0; z-index: 40; }
+        .tab-active { border-bottom: 3px solid #3B82F6; color: #3B82F6; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen p-4">
+        <!-- Navigation Tabs -->
+        <div class="section-nav bg-white shadow-md rounded-lg mb-6">
+            <div class="flex gap-4 p-4 overflow-x-auto max-w-6xl mx-auto">
+                <button onclick="showScreen('lobby')" class="px-4 py-2 whitespace-nowrap font-semibold cursor-pointer tab-active" id="tab-lobby">
+                    🏠 Room Selection
+                </button>
+                <button onclick="showScreen('gameplay')" class="px-4 py-2 whitespace-nowrap font-semibold cursor-pointer border-b-2 border-transparent text-gray-600 hover:text-blue-600" id="tab-gameplay">
+                    🎮 Game Room
+                </button>
+                <button onclick="showScreen('results')" class="px-4 py-2 whitespace-nowrap font-semibold cursor-pointer border-b-2 border-transparent text-gray-600 hover:text-blue-600" id="tab-results">
+                    🏆 Results
+                </button>
+                <button onclick="showScreen('components')" class="px-4 py-2 whitespace-nowrap font-semibold cursor-pointer border-b-2 border-transparent text-gray-600 hover:text-blue-600" id="tab-components">
+                    🎨 Components
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 1: ROOM SELECTION -->
+        <div id="screen-lobby" class="max-w-6xl mx-auto">
+            <div class="min-h-screen flex flex-col justify-center items-center p-6">
+                <!-- Header -->
+                <div class="text-center mb-12">
+                    <h1 class="space-grotesk text-6xl font-bold mb-6 text-gray-900">משחק התנחש 80%</h1>
+                    <p class="text-2xl text-gray-600 max-w-2xl mx-auto mb-4">בחר מספר בין 0 ל-100.</p>
+                    <p class="text-2xl text-gray-600 max-w-2xl mx-auto">המנצח הוא מי שהכי קרוב לממוצע של סכום המספרים כפול 0.8</p>
+                </div>
+
+                <!-- Nickname Input Card -->
+                <div class="glass border border-gray-200 rounded-lg p-6 max-w-2xl w-full mb-8 card-hover">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-900">בחר כינוי להצגה במשחק</h2>
+                    <div class="flex gap-3">
+                        <input 
+                            type="text" 
+                            placeholder="הכינוי שלך..."
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-lg text-right focus:outline-none focus:border-blue-500 focus:shadow-lg"
+                            dir="rtl"
+                            value="Player_123"
+                        />
+                        <button class="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 btn-hover transition">
+                            מחק נתוני שחקן
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Room Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+                    <!-- Room Card 1 -->
+                    <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">חדר 1</h3>
+                            <span class="px-3 py-1 bg-blue-500 text-white text-xs rounded font-semibold">ממתין</span>
+                        </div>
+                        <div class="space-y-2 mb-4 text-sm text-gray-600">
+                            <p>👥 משחקים: 4</p>
+                            <p>🔄 סיבוב נוכחי: 1</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                                הצטרף כשחקן
+                            </button>
+                            <button class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 btn-hover">
+                                צפוי
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Room Card 2 -->
+                    <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">חדר 2</h3>
+                            <span class="px-3 py-1 bg-amber-500 text-white text-xs rounded font-semibold">בוחרים</span>
+                        </div>
+                        <div class="space-y-2 mb-4 text-sm text-gray-600">
+                            <p>👥 משחקים: 6</p>
+                            <p>🔄 סיבוב נוכחי: 3</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                                הצטרף כשחקן
+                            </button>
+                            <button class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 btn-hover">
+                                צפוי
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Room Card 3 -->
+                    <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">חדר 3</h3>
+                            <span class="px-3 py-1 bg-gray-400 text-white text-xs rounded font-semibold">תוצאות</span>
+                        </div>
+                        <div class="space-y-2 mb-4 text-sm text-gray-600">
+                            <p>👥 משחקים: 5</p>
+                            <p>🔄 סיבוב נוכחי: 5</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                                הצטרף כשחקן
+                            </button>
+                            <button class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 btn-hover">
+                                צפוי
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Room Card 4 -->
+                    <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">חדר 4</h3>
+                            <span class="px-3 py-1 bg-amber-500 text-white text-xs rounded font-semibold">בוחרים</span>
+                        </div>
+                        <div class="space-y-2 mb-4 text-sm text-gray-600">
+                            <p>👥 משחקים: 3</p>
+                            <p>🔄 סיבוב נוכחי: 2</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                                הצטרף כשחקן
+                            </button>
+                            <button class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 btn-hover">
+                                צפוי
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: GAME ROOM -->
+        <div id="screen-gameplay" class="max-w-6xl mx-auto hidden">
+            <div class="min-h-screen p-6">
+                <!-- Header -->
+                <div class="glass border border-gray-200 rounded-lg p-4 mb-6 flex justify-between items-center">
+                    <h1 class="text-2xl font-semibold text-gray-900">חדר: חדר 2</h1>
+                    <div class="flex gap-3">
+                        <button class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 btn-hover">
+                            עזוב חדר
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Game Selection -->
+                    <div class="lg:col-span-2">
+                        <!-- Number Selector Card -->
+                        <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                            <h2 class="text-lg font-semibold mb-4 text-gray-900">בחר מספר</h2>
+
+                            <!-- Hide Controls -->
+                            <div class="flex gap-2 mb-6 flex-wrap">
+                                <button class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 btn-hover flex items-center gap-2">
+                                    👁️‍🗨️ חשיפה גדולה
+                                </button>
+                                <button class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-100 btn-hover">
+                                    ○ הסתר לאחר בחירה
+                                </button>
+                            </div>
+
+                            <!-- Large Number Display -->
+                            <div class="flex justify-center mb-6">
+                                <div class="number-display text-center text-gray-900">
+                                    42
+                                </div>
+                            </div>
+
+                            <!-- Slider -->
+                            <div class="mb-6">
+                                <input type="range" min="0" max="100" value="42" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" style="accent-color: #3B82F6;">
+                                <div class="flex justify-between text-xs text-gray-500 mt-2">
+                                    <span>100</span>
+                                    <span>50</span>
+                                    <span>0</span>
+                                </div>
+                            </div>
+
+                            <!-- Number Input -->
+                            <div class="bg-gray-50 p-4 rounded-lg flex gap-3 items-center">
+                                <label class="text-sm font-medium whitespace-nowrap text-right">הזן מספר:</label>
+                                <input 
+                                    type="text" 
+                                    value="42"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-right focus:outline-none focus:border-blue-500"
+                                    dir="rtl"
+                                />
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover whitespace-nowrap">
+                                    בחר
+                                </button>
+                            </div>
+
+                            <!-- Status Message -->
+                            <div class="mt-4 text-center text-green-600 font-semibold">
+                                ✓ בחירה נשמרה
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Players & History -->
+                    <div class="space-y-6">
+                        <!-- Players List -->
+                        <div class="glass border border-gray-200 rounded-lg overflow-hidden card-hover">
+                            <div class="bg-gray-50 border-b border-gray-200 p-4 cursor-pointer hover:bg-gray-100">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+                                        👥 שחקנים (4)
+                                    </h3>
+                                    <span>▼</span>
+                                </div>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                <!-- Current Player -->
+                                <div class="bg-blue-100 border-2 border-blue-300 p-3 rounded-lg">
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-blue-700">Player_123</span>
+                                            <span class="text-xs bg-blue-600 text-white px-2 py-1 rounded">אתה</span>
+                                        </div>
+                                        <span class="text-green-500">✓</span>
+                                    </div>
+                                </div>
+                                <!-- Other Players -->
+                                <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                    <span class="font-medium text-gray-700">Alice👑</span>
+                                    <span class="text-green-500">✓</span>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                    <span class="font-medium text-gray-700">Bob</span>
+                                    <span class="text-gray-300">○</span>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                    <span class="font-medium text-gray-700">Charlie</span>
+                                    <span class="text-green-500">✓</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Game History -->
+                        <div class="glass border border-gray-200 rounded-lg overflow-hidden card-hover">
+                            <div class="bg-gray-50 border-b border-gray-200 p-4 cursor-pointer hover:bg-gray-100">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+                                        🏆 היסטוריה
+                                    </h3>
+                                    <span>▼</span>
+                                </div>
+                            </div>
+                            <div class="p-4 space-y-2">
+                                <div class="bg-gray-50 p-2 rounded cursor-pointer hover:bg-blue-50">
+                                    <p class="font-semibold text-sm text-gray-900">סיבוב 2</p>
+                                    <p class="text-xs text-gray-600">זוכה: Alice</p>
+                                </div>
+                                <div class="bg-gray-50 p-2 rounded cursor-pointer hover:bg-blue-50">
+                                    <p class="font-semibold text-sm text-gray-900">סיבוב 1</p>
+                                    <p class="text-xs text-gray-600">זוכה: Charlie</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: RESULTS MODAL -->
+        <div id="screen-results" class="hidden">
+            <div class="min-h-screen flex items-center justify-center p-6">
+                <!-- Results Modal -->
+                <div class="glass border border-gray-200 rounded-lg max-w-2xl w-full p-8 card-hover">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-6">
+                        <h1 class="text-2xl font-semibold flex items-center gap-2 text-gray-900">
+                            🏆 תוצאות סיבוב 2
+                        </h1>
+                        <button class="text-2xl text-gray-500 hover:text-gray-700 cursor-pointer">✕</button>
+                    </div>
+
+                    <!-- Winner Section -->
+                    <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 mb-6 border border-blue-200">
+                        <p class="text-sm text-gray-600 text-center mb-2">הזוכה בסיבוב זה:</p>
+                        <h2 class="text-3xl font-bold text-blue-700 text-center">👑 Alice</h2>
+                        <p class="text-center text-gray-700 mt-2">בחרה: <span class="font-semibold">35</span></p>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-xs text-gray-600 mb-1">ממוצע כל המספרים</p>
+                            <p class="text-2xl font-bold text-gray-900">43.5</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-xs text-gray-600 mb-1">80% מהממוצע</p>
+                            <p class="text-2xl font-bold text-gray-900">34.8</p>
+                        </div>
+                    </div>
+
+                    <!-- Rankings Table -->
+                    <div class="overflow-x-auto mb-6">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-gray-300">
+                                    <th class="text-right p-2 font-semibold text-gray-900">דירוג</th>
+                                    <th class="text-right p-2 font-semibold text-gray-900">שם</th>
+                                    <th class="text-right p-2 font-semibold text-gray-900">מספר</th>
+                                    <th class="text-right p-2 font-semibold text-gray-900">הפרש</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-green-50 border-b border-gray-200">
+                                    <td class="text-right p-2">🥇 1</td>
+                                    <td class="text-right p-2 font-semibold">Alice</td>
+                                    <td class="text-right p-2">35</td>
+                                    <td class="text-right p-2 text-green-600 font-semibold">0.2</td>
+                                </tr>
+                                <tr class="border-b border-gray-200">
+                                    <td class="text-right p-2">🥈 2</td>
+                                    <td class="text-right p-2">Charlie</td>
+                                    <td class="text-right p-2">38</td>
+                                    <td class="text-right p-2 text-gray-600">3.2</td>
+                                </tr>
+                                <tr class="border-b border-gray-200">
+                                    <td class="text-right p-2">🥉 3</td>
+                                    <td class="text-right p-2">Player_123</td>
+                                    <td class="text-right p-2">42</td>
+                                    <td class="text-right p-2 text-gray-600">7.2</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-right p-2">4</td>
+                                    <td class="text-right p-2">Bob</td>
+                                    <td class="text-right p-2">55</td>
+                                    <td class="text-right p-2 text-gray-600">20.2</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                        חזור למשחק
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: COMPONENT LIBRARY -->
+        <div id="screen-components" class="hidden">
+            <div class="max-w-6xl mx-auto p-6 space-y-12">
+                <h1 class="text-4xl font-bold text-gray-900 mb-8">🎨 Component Library</h1>
+
+                <!-- Buttons -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Buttons</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-lg border border-gray-200">
+                        <div>
+                            <p class="text-xs font-semibold text-gray-600 mb-3 uppercase">Primary Button</p>
+                            <button class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 btn-hover">
+                                בחר זאת
+                            </button>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-600 mb-3 uppercase">Outline Button</p>
+                            <button class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 btn-hover">
+                                עזור לי
+                            </button>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-600 mb-3 uppercase">Disabled Button</p>
+                            <button class="px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed opacity-60">
+                                מכוער
+                            </button>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-600 mb-3 uppercase">Small Button</p>
+                            <button class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 btn-hover">
+                                קטן
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Input Fields -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Input Fields</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-lg border border-gray-200">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Normal Input</label>
+                            <input type="text" placeholder="אני כן מסדר שלי..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" dir="rtl" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Error Input</label>
+                            <input type="text" placeholder="שגיאה..." class="w-full px-4 py-3 border-2 border-red-500 rounded-lg focus:outline-none bg-red-50" dir="rtl" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Number Input</label>
+                            <input type="number" min="0" max="100" value="42" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-right" dir="rtl" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Disabled Input</label>
+                            <input type="text" placeholder="מכוער..." disabled class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 opacity-60 cursor-not-allowed" dir="rtl" />
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Badges & States -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Badges & Status Indicators</h2>
+                    <div class="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
+                        <div class="flex gap-3 flex-wrap">
+                            <span class="px-3 py-1 bg-blue-500 text-white text-xs rounded font-semibold">ממתין</span>
+                            <span class="px-3 py-1 bg-amber-500 text-white text-xs rounded font-semibold">בוחרים</span>
+                            <span class="px-3 py-1 bg-gray-400 text-white text-xs rounded font-semibold">תוצאות</span>
+                            <span class="px-3 py-1 bg-green-500 text-white text-xs rounded font-semibold">הצלחה</span>
+                            <span class="px-3 py-1 bg-red-500 text-white text-xs rounded font-semibold">שגיאה</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Cards -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Cards</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass border border-gray-200 rounded-lg p-6 card-hover">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Glass Card</h3>
+                            <p class="text-gray-600">This is a glass-morphism card with backdrop blur effect.</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 card-hover">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Standard Card</h3>
+                            <p class="text-gray-600">This is a standard white card with subtle border.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Color Palette -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Color Palette</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div class="space-y-2">
+                            <div class="h-24 bg-blue-600 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center">Primary Blue<br>#3B82F6</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-24 bg-blue-100 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center">Blue Light<br>#DBEAFE</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-24 bg-green-500 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center">Success<br>#10B981</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-24 bg-red-500 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center">Error<br>#EF4444</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-24 bg-amber-500 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center">Amber<br>#F59E0B</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-24 bg-gray-600 rounded-lg shadow-md"></div>
+                            <p class="text-xs font-semibold text-center text-white">Gray<br>#4B5563</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Typography -->
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Typography</h2>
+                    <div class="bg-white p-6 rounded-lg border border-gray-200 space-y-6">
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold mb-2">HEADING 1</p>
+                            <p class="space-grotesk text-5xl font-bold text-gray-900">משחק התנחש 80%</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold mb-2">HEADING 2</p>
+                            <p class="text-3xl font-bold text-gray-900">בחר מספר בין 0-100</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold mb-2">BODY TEXT</p>
+                            <p class="text-base text-gray-700 leading-relaxed">זה הטקסט הנורמלי שאתה רואה בכל המקום בעמוד. הוא צריך להיות קל לקריאה ויחד עם זאת מעניין.</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold mb-2">MONOSPACE (Number Display)</p>
+                            <p class="number-display text-gray-900">42</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showScreen(screenId) {
+            // Hide all screens
+            document.getElementById('screen-lobby').classList.add('hidden');
+            document.getElementById('screen-gameplay').classList.add('hidden');
+            document.getElementById('screen-results').classList.add('hidden');
+            document.getElementById('screen-components').classList.add('hidden');
+
+            // Reset tabs
+            document.getElementById('tab-lobby').classList.remove('tab-active', 'text-blue-600');
+            document.getElementById('tab-lobby').classList.add('border-b-2', 'border-transparent', 'text-gray-600');
+            document.getElementById('tab-gameplay').classList.remove('tab-active', 'text-blue-600');
+            document.getElementById('tab-gameplay').classList.add('border-b-2', 'border-transparent', 'text-gray-600');
+            document.getElementById('tab-results').classList.remove('tab-active', 'text-blue-600');
+            document.getElementById('tab-results').classList.add('border-b-2', 'border-transparent', 'text-gray-600');
+            document.getElementById('tab-components').classList.remove('tab-active', 'text-blue-600');
+            document.getElementById('tab-components').classList.add('border-b-2', 'border-transparent', 'text-gray-600');
+
+            // Show selected screen
+            document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+
+            // Activate selected tab
+            const tabId = `tab-${screenId}`;
+            document.getElementById(tabId).classList.add('tab-active', 'text-blue-600');
+            document.getElementById(tabId).classList.remove('border-b-2', 'border-transparent', 'text-gray-600');
+        }
+    </script>
+</body>
+</html>
